@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from functools import wraps
 import time
+import numpy as np
 
 import math
 import matplotlib.pyplot as plt
@@ -26,6 +27,46 @@ if torch.cuda.is_available():
     device = torch.device("cuda")
 else:
     device = torch.device("cpu")
+# Build Discriminator:
+class Discriminator(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = nn.Sequential(
+            # first layer (input layer)
+            nn.Linear(2, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            # second layer
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            # third layer
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            # last layer (output)
+            nn.Linear(64, 1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+# Generator
+class Generator(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(2, 16),
+            nn.ReLU(),
+            nn.Linear(16, 32),
+            nn.ReLU(),
+            nn.Linear(32, 2),
+        )
+
+    def forward(self, x):
+        return self.model(x)
 
 
 @performance_counter
@@ -34,12 +75,12 @@ def main():
     torch.manual_seed(111)
 
     # prepare training data_
-    train_data_length = 1024
+    train_data_length = 8760
     # my train data will be a sine curve over 8760 hours
     train_data = torch.zeros((train_data_length, 2))
     # create sine curve with x and y as the two coordinates
-    train_data[:, 0] = 2 * math.pi * torch.rand(train_data_length)
-    train_data[:, 1] = torch.sin(train_data[:, 0])
+    train_data[:, 0] = torch.arange(start=0, end=train_data_length)
+    train_data[:, 1] = torch.rand(size=(train_data_length, ))
     train_labels = torch.zeros(train_data_length)
     # pytorch data loader expects a tuples with the training data and the respective label
     train_set = [(train_data[i], train_labels[i]) for i in range(train_data_length)]
@@ -57,58 +98,15 @@ def main():
 
 
 
-    plt.plot(train_data[:, 0], train_data[:, 1], ".")
+    plt.plot(train_data[:, 0], train_data[:, 1], "-")
     plt.show()
 
     # create pytorch data loader
-    batch_size = 32  # ! Must be a manyfold by the train data length
+    batch_size = 60  # ! Must be a manyfold by the train data length
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 
-
-    # Build Discriminator:
-    class Discriminator(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.model = nn.Sequential(
-                # first layer (input layer)
-                nn.Linear(2, 256),
-                nn.ReLU(),
-                nn.Dropout(0.3),
-                # second layer
-                nn.Linear(256, 128),
-                nn.ReLU(),
-                nn.Dropout(0.3),
-                # third layer
-                nn.Linear(128, 64),
-                nn.ReLU(),
-                nn.Dropout(0.3),
-                # last layer (output)
-                nn.Linear(64, 1),
-                nn.Sigmoid(),
-            )
-
-        def forward(self, x):
-            return self.model(x)
-
-
-    # Generator
-    class Generator(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.model = nn.Sequential(
-                nn.Linear(2, 16),
-                nn.ReLU(),
-                nn.Linear(16, 32),
-                nn.ReLU(),
-                nn.Linear(32, 2),
-            )
-
-        def forward(self, x):
-            return self.model(x)
-
-
-    discriminator = Discriminator()
-    generator = Generator()
+    discriminator = Discriminator().to(device)
+    generator = Generator().to(device)
 
     # train the models:
     lr = 0.001
@@ -161,9 +159,30 @@ def main():
     generated_samples = generator(latent_space_samples)
 
     generated_samples = generated_samples.detach()
-    plt.plot(generated_samples[:, 0], generated_samples[:, 1], ".")
+    plt.plot(generated_samples[:, 0], generated_samples[:, 1], "-", "r")
+    plt.title("generated")
+    plt.show()
+
+    # save models
+    torch.save(discriminator.state_dict(), r"C:\Users\mascherbauer\PycharmProjects\GAN\discriminator.pt")
+    torch.save(generator.state_dict(), r"C:\Users\mascherbauer\PycharmProjects\GAN\generator.pt")
+    torch.save({
+        "discriminator": discriminator.state_dict(),
+        "generator": generator.state_dict(),
+        "optimizer_discriminator": optimizer_discriminator.state_dict(),
+        "optimizer_generator": optimizer_generator.state_dict()
+    }, r"C:\Users\mascherbauer\PycharmProjects\GAN\both_models.pt")
+
+
+def load_models(path):
+
+    discriminator = Discriminator()
+    generator = Generator()
+    # optimizer_discriminator =
 
 
 if __name__ == "__main__":
     main()
+
+    load_models(r"C:\Users\mascherbauer\PycharmProjects\GAN\both_models.pt")
 
