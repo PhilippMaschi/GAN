@@ -27,13 +27,19 @@ class LoadProfileLoader:
 
         return big_table
 
-    def create_timestamp(self, df: pd.DataFrame):
+    def create_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
+        """creates a timestamp in the 'date' column so we can cluster the data more easily"""
+        df.loc[:, "date"] = pd.to_datetime(df.date) + pd.to_timedelta(df.hour, unit='h')
+        return df
+
+
+
 
 
 
     def main(self):
         all_profiles = self.read_load_profiles(self.get_csv_names())
-        self.create_timestamp(all_profiles)
+        df = self.create_timestamp(all_profiles)
 
 
 
