@@ -16,12 +16,22 @@ class LoadProfileLoader:
         csv_names = os.listdir(self.path_2_files)
         return csv_names
 
+    def normalize_load(self, load: pd.Series) -> pd.Series:
+        """normalize the load by the peak load so load will be between 0 and 1"""
+        # convert load to float
+        load_values = load.astype(float)
+        max_value = load.max()
+        normalized = load_values / max_value
+        return normalized
+
     def read_load_profiles(self, csv_names: List[str]) -> pd.DataFrame:
         big_table = pd.DataFrame(columns=["date", "hour", "load"])
         for name in csv_names:
             file = Path(self.path_2_files) / Path(name)
-            load = pd.read_csv(file, sep=";").loc[:, ["FECHA(YYYY-MM-DD o DD/MM/YYY)", "HORA(h)", "A+(Wh)"]]
+            load = pd.read_csv(file, sep=";", decimal=",").loc[:, ["FECHA(YYYY-MM-DD o DD/MM/YYY)", "HORA(h)", "A+(Wh)"]]
             load.columns = ["date", "hour", "load"]  # rename the columns
+            # normalize the load
+            load.loc[:, "load"] = self.normalize_load(load.load)
             # add all the tables to one big dataframe
             big_table = pd.concat([big_table, load])
 
