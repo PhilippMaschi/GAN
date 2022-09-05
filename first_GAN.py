@@ -33,16 +33,19 @@ class Discriminator(nn.Module):
         super().__init__()
         self.model = nn.Sequential(
             # first layer (input layer)
-            nn.Linear(2, 256),
-            nn.ReLU(),
+            nn.Linear(2, 64),
+            nn.LeakyReLU(),
             nn.Dropout(0.3),
             # second layer
-            nn.Linear(256, 128),
-            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.LeakyReLU(),
             nn.Dropout(0.3),
             # third layer
+            nn.Linear(128, 128),
+            nn.LeakyReLU(),
+            nn.Dropout(0.3),
             nn.Linear(128, 64),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Dropout(0.3),
             # last layer (output)
             nn.Linear(64, 1),
@@ -58,11 +61,13 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Linear(2, 16),
-            nn.ReLU(),
-            nn.Linear(16, 32),
-            nn.ReLU(),
-            nn.Linear(32, 2),
+            nn.Linear(2, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, 64),
+            nn.LeakyReLU(),
+            nn.Linear(64, 1),
         )
 
     def forward(self, x):
@@ -102,19 +107,19 @@ def main():
     plt.show()
 
     # create pytorch data loader
-    batch_size = 60  # ! Must be a manyfold by the train data length
+    batch_size = 2190  # ! Must be a manyfold by the train data length
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 
     discriminator = Discriminator().to(device)
     generator = Generator().to(device)
 
     # train the models:
-    lr = 0.001
+    lr = 0.0004
     num_epochs = 300
     loss_function = nn.BCELoss()  # binary cross entropy loss function
 
-    optimizer_discriminator = torch.optim.Adam(discriminator.parameters(), lr=lr)
-    optimizer_generator = torch.optim.Adam(generator.parameters(), lr=lr)
+    optimizer_discriminator = torch.optim.Adam(discriminator.parameters(), lr=0.0004)
+    optimizer_generator = torch.optim.Adam(generator.parameters(), lr=0.0002)
 
     # training loop
     for epoch in range(num_epochs):
@@ -180,9 +185,17 @@ def load_models(path):
     generator = Generator()
     # optimizer_discriminator =
 
+    checkpoint = torch.load(path)
+    discriminator.load_state_dict(checkpoint["discriminator"])
+    generator.load_state_dict(checkpoint["generator"])
+    discriminator.eval()
+    generator.eval()
+
+    return discriminator, generator
+
 
 if __name__ == "__main__":
     main()
 
-    load_models(r"C:\Users\mascherbauer\PycharmProjects\GAN\both_models.pt")
+    # load_models(r"C:\Users\mascherbauer\PycharmProjects\GAN\both_models.pt")
 
