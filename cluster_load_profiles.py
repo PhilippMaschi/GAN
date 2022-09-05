@@ -24,14 +24,21 @@ class LoadProfileLoader:
         normalized = load_values / max_value
         return normalized
 
+    # TODO check for outliers
+    def check_for_outliers(self):
+        pass
+
     def read_load_profiles(self, csv_names: List[str]) -> pd.DataFrame:
-        big_table = pd.DataFrame(columns=["date", "hour", "load"])
-        for name in csv_names:
+        big_table = pd.DataFrame(columns=["date", "hour"])
+        for i, name in enumerate(csv_names):
             file = Path(self.path_2_files) / Path(name)
             load = pd.read_csv(file, sep=";", decimal=",").loc[:, ["FECHA(YYYY-MM-DD o DD/MM/YYY)", "HORA(h)", "A+(Wh)"]]
             load.columns = ["date", "hour", "load"]  # rename the columns
             # normalize the load
-            load.loc[:, "load"] = self.normalize_load(load.load)
+            big_table.loc[:, f"load_{name}"] = self.normalize_load(load.load)
+            if i == 0:
+                big_table.loc[]
+            # check if the timestamps are the same
             # add all the tables to one big dataframe
             big_table = pd.concat([big_table, load])
 
