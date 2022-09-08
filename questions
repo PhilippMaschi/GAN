@@ -1,0 +1,8 @@
+* hours column: 25???? what does it mean?
+
+* how to treat 0 values????
+is a real-zero or is a mistake?
+
+* create a class for data exploratory (missing values/0/outliers), one for data analysis and one ofer data cleaning
+or
+EDA class??

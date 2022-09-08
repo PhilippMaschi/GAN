@@ -1,0 +1,36 @@
+PYTHON TOOLS
+https://builtin.com/data-science/EDA-python
+
+DATA INFO:
+14 columns and 284400 entries
+columns name:
+'date', 'hour', 'consumed energy', 'exported energy',
+       'reactive energy Q1', 'reactive energy Q2', 'reactive energy Q3',
+       'reactive energy Q4', 'contacted power P1', 'contacted power P2',
+       'contacted power P3', 'contacted power P4', 'contacted power P5',
+       'contacted power P6'
+
+MISSING VALUES:
+5 columns with 100% missing values:
+'contacted power P2', 'contacted power P3', 'contacted power P4', 'contacted power P5',
+       'contacted power P6'
+
+NULL VALUES:
+Count of zer0s hour : 42206
+Count of zer0s consumed energy : 282465
+Count of zer0s exported energy : 118449
+Count of zer0s reactive energy Q1 : 284372
+Count of zer0s reactive energy Q2 : 280541
+Count of zer0s reactive energy Q3 : 125521
+
+outliers:
+https://datasciencesphere.com/analytics/5-easy-ways-to-detect-outliers-in-python/
+
+
+Links:
+quick overview:
+https://www.kaggle.com/code/spscientist/a-simple-tutorial-on-exploratory-data-analysis
+* https://www.analyticsvidhya.com/blog/2016/01/guide-data-exploration/
+
+Tutorials:
+https://www.simplilearn.com/tutorials/data-analytics-tutorial/exploratory-data-analysis
