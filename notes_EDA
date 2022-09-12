@@ -1,6 +1,6 @@
 PYTHON TOOLS
 https://builtin.com/data-science/EDA-python
-sweetviz
+all EDA not working, problem to import soft_unicode from markupsafe :(
 
 DATA INFO:
 14 columns and 284400 entries

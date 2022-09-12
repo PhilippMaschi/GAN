@@ -6,3 +6,5 @@ is a real-zero or is a mistake?
 * create a class for data exploratory (missing values/0/outliers), one for data analysis and one ofer data cleaning
 or
 EDA class??
+
+sudo pip3 install markupsafe==2.0.1

@@ -6,8 +6,6 @@ from pathlib import Path
 import os
 
 
-
-
 class LoadProfileLoader:
     def __init__(self):
         self.path_2_files = r"C:\Users\mascherbauer\OneDrive\EEG_Projekte\MODERATE\data\ENERCOOP"

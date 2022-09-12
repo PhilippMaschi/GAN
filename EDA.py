@@ -3,6 +3,8 @@ import os
 import glob
 import seaborn as sns
 import matplotlib.pyplot as plt
+from pandas_profiling import ProfileReport
+from markupsafe import soft_unicode
 
 
 #TODO: CREATE A CLASS TO IMPORT and CONC DATA
@@ -20,12 +22,18 @@ def combine_csv(path, delim):
     data.columns = column_names
     return data
 
-data.to_csv("combined_csv.csv")
-data.to_excel('combined_csv.xlsx')
+data.to_csv("combined_csv.csv", index=False)
 
-#TODO: convert 'imported energy' from object > int + delete the uname column
 
 ## DATA EXPLORATION
+
+data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
+
+
+# categorical variables and conversion
+cat_columns = data.select_dtypes(['object']).columns    # 'date', 'consumed energy'
+data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
+
 #TODO: CREATE A CLASS TO DATA EXPLORATORY
 
 # Missing values
@@ -40,9 +48,10 @@ missing_data.to_excel('missing_data.xlsx')
 
 # dealing with missing data.
 # Since there are only 4 columns with missing data (100%) > dropped them
-data_ohne_mv = data.drop(columns = ['contacted power P2', 'contacted power P3',
+data_no_missing_val = data.drop(columns = ['contacted power P2', 'contacted power P3',
                             'contacted power P4', 'contacted power P5',
-                            'contacted power P6'], axis=1)
+                            'contacted power P6', 'no name'], axis=1)
+data_no_missing_val.to_csv('data_no_miss_val.csv', index=False)
 
 # 0 values
 def null_values (df):
@@ -53,32 +62,60 @@ def null_values (df):
 
 #TODO: dataframe and export to excel
 
-# Outlayers
+
+#* OUTLIERS
+data.describe()
+data_clean = pd.read_csv('data_no_miss_val.csv', index_col=0, low_memory=False)
 
 # boxpots:
-fig = plt.figure()
-bp = data.boxplot()
+def outliers_boxplot(dataset, fig_name):
+    fig = plt.figure()
+    bp = dataset.plot (kind='box',subplots=True,layout=(5,3),figsize=(10,10))
+    plt.savefig(fig_name)
+    return plt.show()
+
+
+data.hist(column='reactive energy Q1')
 plt.show()
+Q1 = data_clean['reactive energy Q1'].value_counts()
+Q2 = data_clean['reactive energy Q2'].value_counts() #two unique values: 0 and 1
+ee = data_clean['exported energy'].value_counts()   #two unique values: 0 and 1
+unique = pd.concat([Q1, Q2, ee], axis=1)
 
-fig = plt.figure()
-bp = data.plot (kind='box',subplots=True,layout=(5,3),figsize=(10,10))
-plt.savefig('test.png')
-plt.show()
-
-# TODO: scatterplots
-
-
-
+# unique values frequency:
+def count_elements (seq) -> dict:
+    """Tally elements from `seq`."""
+    hist = {}
+    for i in seq:
+        hist[i] = hist.get (i,0) + 1
+    return hist
 
 ## DATA ANALYSIS
-#TODO: univariate analysis - variable distribution
+#TODO: barplot date and hour
+# TODO: snd vs histogram
 
-#TODO: bivariate analysis (????) - variable correlation
+def univariate_analysis (data, fig_name):
+    fig, axes = plt.subplots(3, 3, figsize=(18, 10))
+    fig.suptitle('univariate distribution')
+    sns.kdeplot(ax=axes[0, 0], data=data['date'])
+    sns.kdeplot(ax=axes[0, 1], data=data['hour'])
+    sns.kdeplot(ax=axes[0, 2], data=data['consumed energy'])
+    sns.kdeplot(ax=axes[1, 0], data=data['exported energy'])
+    sns.kdeplot(ax=axes[1, 1], data=data['reactive energy Q1'])
+    sns.kdeplot(ax=axes[1, 2], data=data['reactive energy Q2'])
+    sns.kdeplot(ax=axes[2, 0], data=data['reactive energy Q3'])
+    sns.kdeplot(ax=axes[2, 1], data=data['reactive energy Q4'])
+    sns.kdeplot(ax=axes[2, 2], data=data['contacted power P1'])
+    plt.savefig(fig_name)
+    return plt.show()
+
+
+
+#TODO: bivariate analysis (?? - variable correlation
 
 #TODO: multivariate analysis (????)
 
 
 ## DATA NORMALIZATION
-
 
 #TODO: normalize data
