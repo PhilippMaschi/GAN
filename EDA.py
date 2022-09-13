@@ -3,9 +3,8 @@ import os
 import glob
 import seaborn as sns
 import matplotlib.pyplot as plt
-from pandas_profiling import ProfileReport
-from markupsafe import soft_unicode
-
+from  lets_plot import *
+LetsPlot.setup_html()
 
 
 #TODO: CREATE A CLASS TO IMPORT and CONC DATA
@@ -17,22 +16,26 @@ column_names = ['date', 'hour', 'consumed energy', 'exported energy',
                     'contacted power P3', 'contacted power P4', 'contacted power P5',
                     'contacted power P6', 'no name']
 
-def combine_csv(path, delim):
+def combine_csv(path, delim, file_name):
     csv_files =glob.glob(os.path.join(path, '*.csv'))
     data = pd.concat([pd.read_csv(f, delimiter=delim, index_col=None, ) for f in csv_files])
     data.columns = column_names
+    data.to_csv (file_name,index=False)
     return data
 
-data.to_csv("combined_csv.csv", index=False)
+# categorical variables and conversion
+
+
+def import_file (file_name):
+    data = pd.read_csv(file_name, index_col=0, low_memory=False)
+    cat_columns = data.select_dtypes (['object']).columns  # 'date', 'consumed energy'
+    data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
+
 
 
 ## DATA EXPLORATION
 
 data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
-
-# categorical variables and conversion
-cat_columns = data.select_dtypes(['object']).columns    # 'date', 'consumed energy'
-data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
 
 #TODO: CREATE A CLASS TO DATA EXPLORATORY
 
@@ -93,8 +96,6 @@ def count_elements (seq) -> dict:
 ## DATA ANALYSIS
 #TODO: barplot date and hour
 # TODO: snd vs histogram
-
-
 def univariate_analysis (data, fig_name):
     fig, axes = plt.subplots(3, 3, figsize=(18, 10))
     fig.suptitle('univariate distribution')
@@ -110,6 +111,21 @@ def univariate_analysis (data, fig_name):
     plt.savefig(fig_name)
     return plt.show()
 
+#sweetViz
+import sweetviz as sv
+report = sv.analyze(data)
+report.show_html('report.html')
+
+#pandas profiling
+from pandas_profiling import ProfileReport
+profile = ProfileReport(data, title="Report")
+profile.to_file(output_file='profile.html')
+profile
+
+#autoViz
+from autoviz.AutoViz_Class import AutoViz_Class
+AV = AutoViz_Class()
+df_av = AV.AutoViz('data_no_miss_val.csv')
 
 
 #TODO: bivariate analysis (?? - variable correlation
