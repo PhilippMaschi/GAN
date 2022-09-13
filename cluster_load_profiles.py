@@ -8,19 +8,11 @@ import os
 
 class LoadProfileLoader:
     def __init__(self):
-        self.path_2_files = r"C:\Users\mascherbauer\OneDrive\EEG_Projekte\MODERATE\data\ENERCOOP"
+        self.path_2_files = r'/Users/francesca/Desktop/e-think/MODERATE/datasets/Enercoop'
 
     def get_csv_names(self) -> List[str]:
         csv_names = os.listdir(self.path_2_files)
         return csv_names
-
-    def normalize_load(self, load: pd.Series) -> pd.Series:
-        """normalize the load by the peak load so load will be between 0 and 1"""
-        # convert load to float
-        load_values = load.astype(float)
-        max_value = load.max()
-        normalized = load_values / max_value
-        return normalized
 
     def read_load_profiles(self, csv_names: List[str]) -> pd.DataFrame:
         big_table = pd.DataFrame(columns=["date", "hour", "load"])
@@ -39,6 +31,14 @@ class LoadProfileLoader:
         """creates a timestamp in the 'date' column so we can cluster the data more easily"""
         df.loc[:, "date"] = pd.to_datetime(df.date) + pd.to_timedelta(df.hour, unit='h')
         return df
+
+    def normalize_load(self, load: pd.Series) -> pd.Series:
+        """normalize the load by the peak load so load will be between 0 and 1"""
+        # convert load to float
+        load_values = load.astype(float)
+        max_value = load.max()
+        normalized = load_values / max_value
+        return normalized
 
 
 

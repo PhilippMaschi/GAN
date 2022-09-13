@@ -7,7 +7,6 @@ from  lets_plot import *
 LetsPlot.setup_html()
 
 
-#TODO: CREATE A CLASS TO IMPORT and CONC DATA
 path = r'/Users/francesca/Desktop/e-think/MODERATE/datasets/Enercoop'
 
 column_names = ['date', 'hour', 'consumed energy', 'exported energy',
@@ -16,29 +15,20 @@ column_names = ['date', 'hour', 'consumed energy', 'exported energy',
                     'contacted power P3', 'contacted power P4', 'contacted power P5',
                     'contacted power P6', 'no name']
 
-def combine_csv(path, delim, file_name):
+
+def combine_csv(path, delim):
     csv_files =glob.glob(os.path.join(path, '*.csv'))
     data = pd.concat([pd.read_csv(f, delimiter=delim, index_col=None, ) for f in csv_files])
     data.columns = column_names
-    data.to_csv (file_name,index=False)
+    data.to_csv ('concatenated_csv.csv', index=False)
     return data
 
 # categorical variables and conversion
+cat_columns = data.select_dtypes (['object']).columns  # 'date', 'consumed energy'
+data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
+return data
 
-
-def import_file (file_name):
-    data = pd.read_csv(file_name, index_col=0, low_memory=False)
-    cat_columns = data.select_dtypes (['object']).columns  # 'date', 'consumed energy'
-    data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
-
-
-
-## DATA EXPLORATION
-
-data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
-
-#TODO: CREATE A CLASS TO DATA EXPLORATORY
-
+# MISSING VALUES
 # Missing values
 # count the number or missing values and the percentage
 def missing_values (df):
@@ -54,9 +44,36 @@ missing_data.to_excel('missing_data.xlsx')
 data_no_missing_val = data.drop(columns = ['contacted power P2', 'contacted power P3',
                             'contacted power P4', 'contacted power P5',
                             'contacted power P6', 'no name'], axis=1)
-data_no_missing_val.to_csv('data_no_miss_val.csv', index=False)
+data_no_missing_val.to_csv('data_clean.csv', index=False)
 
-# 0 values
+##### +++++++++++++++++++++++++++++++++++++++++ ####
+
+
+#sweetViz
+import sweetviz as sv
+report = sv.analyze(data)
+report.show_html('sweetViz.html')
+
+#pandas profiling
+from pandas_profiling import ProfileReport
+profile = ProfileReport(data, title="Report")
+profile.to_file(output_file='pandas_profiling.html')
+
+#autoViz
+from autoviz.AutoViz_Class import AutoViz_Class
+AV = AutoViz_Class()
+df_av = AV.AutoViz('data_no_miss_val.csv')
+# not possible to export in HTML????
+
+##### +++++++++++++++++++++++++++++++++++++++++ ####
+
+## DATA EXPLORATION
+
+data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
+
+#TODO: CREATE A CLASS TO DATA EXPLORATORY
+
+#* 0 values
 def null_values (df):
     for column_name in df.columns:
         column = df[column_name]
@@ -110,22 +127,6 @@ def univariate_analysis (data, fig_name):
     sns.kdeplot(ax=axes[2, 2], data=data['contacted power P1'])
     plt.savefig(fig_name)
     return plt.show()
-
-#sweetViz
-import sweetviz as sv
-report = sv.analyze(data)
-report.show_html('report.html')
-
-#pandas profiling
-from pandas_profiling import ProfileReport
-profile = ProfileReport(data, title="Report")
-profile.to_file(output_file='profile.html')
-profile
-
-#autoViz
-from autoviz.AutoViz_Class import AutoViz_Class
-AV = AutoViz_Class()
-df_av = AV.AutoViz('data_no_miss_val.csv')
 
 
 #TODO: bivariate analysis (?? - variable correlation
