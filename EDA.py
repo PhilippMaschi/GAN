@@ -7,6 +7,7 @@ from pandas_profiling import ProfileReport
 from markupsafe import soft_unicode
 
 
+
 #TODO: CREATE A CLASS TO IMPORT and CONC DATA
 path = r'/Users/francesca/Desktop/e-think/MODERATE/datasets/Enercoop'
 
@@ -28,7 +29,6 @@ data.to_csv("combined_csv.csv", index=False)
 ## DATA EXPLORATION
 
 data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
-
 
 # categorical variables and conversion
 cat_columns = data.select_dtypes(['object']).columns    # 'date', 'consumed energy'
@@ -65,7 +65,7 @@ def null_values (df):
 
 #* OUTLIERS
 data.describe()
-data_clean = pd.read_csv('data_no_miss_val.csv', index_col=0, low_memory=False)
+data = pd.read_csv('data_no_miss_val.csv', index_col=0, low_memory=False)
 
 # boxpots:
 def outliers_boxplot(dataset, fig_name):
@@ -93,6 +93,7 @@ def count_elements (seq) -> dict:
 ## DATA ANALYSIS
 #TODO: barplot date and hour
 # TODO: snd vs histogram
+
 
 def univariate_analysis (data, fig_name):
     fig, axes = plt.subplots(3, 3, figsize=(18, 10))
