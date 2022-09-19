@@ -7,26 +7,6 @@ from  lets_plot import *
 LetsPlot.setup_html()
 
 
-path = r'/Users/francesca/Desktop/e-think/MODERATE/datasets/Enercoop'
-
-column_names = ['date', 'hour', 'consumed energy', 'exported energy',
-                    'reactive energy Q1', 'reactive energy Q2', 'reactive energy Q3',
-                    'reactive energy Q4', 'contacted power P1', 'contacted power P2',
-                    'contacted power P3', 'contacted power P4', 'contacted power P5',
-                    'contacted power P6', 'no name']
-
-
-def combine_csv(path, delim):
-    csv_files =glob.glob(os.path.join(path, '*.csv'))
-    data = pd.concat([pd.read_csv(f, delimiter=delim, index_col=None, ) for f in csv_files])
-    data.columns = column_names
-    data.to_csv ('concatenated_csv.csv', index=False)
-    return data
-
-# categorical variables and conversion
-cat_columns = data.select_dtypes (['object']).columns  # 'date', 'consumed energy'
-data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
-return data
 
 # MISSING VALUES
 # Missing values
