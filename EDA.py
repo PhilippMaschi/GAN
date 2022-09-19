@@ -3,14 +3,9 @@ import os
 import glob
 import seaborn as sns
 import matplotlib.pyplot as plt
-from  lets_plot import *
-LetsPlot.setup_html()
-
-
 
 # MISSING VALUES
 # Missing values
-# count the number or missing values and the percentage
 def missing_values (df):
     tot_missing = df.isnull().sum().sort_values(ascending=False)
     percent_missing = (df.isnull().sum()/df.isnull().count()).sort_values(ascending=False)
@@ -21,37 +16,12 @@ missing_data.to_excel('missing_data.xlsx')
 
 # dealing with missing data.
 # Since there are only 4 columns with missing data (100%) > dropped them
+
 data_no_missing_val = data.drop(columns = ['contacted power P2', 'contacted power P3',
                             'contacted power P4', 'contacted power P5',
                             'contacted power P6', 'no name'], axis=1)
 data_no_missing_val.to_csv('data_clean.csv', index=False)
 
-##### +++++++++++++++++++++++++++++++++++++++++ ####
-
-
-#sweetViz
-import sweetviz as sv
-report = sv.analyze(data)
-report.show_html('sweetViz.html')
-
-#pandas profiling
-from pandas_profiling import ProfileReport
-profile = ProfileReport(data, title="Report")
-profile.to_file(output_file='pandas_profiling.html')
-
-#autoViz
-from autoviz.AutoViz_Class import AutoViz_Class
-AV = AutoViz_Class()
-df_av = AV.AutoViz('data_no_miss_val.csv')
-# not possible to export in HTML????
-
-##### +++++++++++++++++++++++++++++++++++++++++ ####
-
-## DATA EXPLORATION
-
-data_all = pd.read_csv('combined_csv.csv', index_col=0, low_memory=False)
-
-#TODO: CREATE A CLASS TO DATA EXPLORATORY
 
 #* 0 values
 def null_values (df):
@@ -59,8 +29,6 @@ def null_values (df):
         column = df[column_name]
         count = (column==0).sum()
         print('Count of zer0s', column_name, ':', count)
-
-#TODO: dataframe and export to excel
 
 
 #* OUTLIERS
@@ -83,6 +51,10 @@ ee = data_clean['exported energy'].value_counts()   #two unique values: 0 and 1
 unique = pd.concat([Q1, Q2, ee], axis=1)
 
 # unique values frequency:
+# all columns
+unique_values = pd.DataFrame(data_clean.nunique())
+
+# specific columns
 def count_elements (seq) -> dict:
     """Tally elements from `seq`."""
     hist = {}
@@ -90,9 +62,9 @@ def count_elements (seq) -> dict:
         hist[i] = hist.get (i,0) + 1
     return hist
 
-## DATA ANALYSIS
+#* VARIABLE DISTRIBUTION
 #TODO: barplot date and hour
-# TODO: snd vs histogram
+
 def univariate_analysis (data, fig_name):
     fig, axes = plt.subplots(3, 3, figsize=(18, 10))
     fig.suptitle('univariate distribution')
@@ -109,7 +81,11 @@ def univariate_analysis (data, fig_name):
     return plt.show()
 
 
-#TODO: bivariate analysis (?? - variable correlation
+# variable correlation
+f = plt.figure(figsize=(19, 15))
+corrMatrix = data.corr()
+ax = sns.heatmap (corrMatrix, annot=True)
+plt.show()
 
 #TODO: multivariate analysis (????)
 
