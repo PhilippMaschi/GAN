@@ -37,10 +37,10 @@ class ProfileLoader:  # I deleted the verb, because convention is Substantive to
         df.loc[:, "date"] = pd.to_datetime(df.date) + pd.to_timedelta(df.hour, unit='h')
         return df
 
-    # function to convert categorical variables in numerical. Necessary ???
+    # function to convert categorical variables in numerical. Necessary??? It is necessary in the EDA
     def from_cat_to_num(self, df: pd.DataFrame) -> pd.DataFrame:
-        cat_columns = data.select_dtypes(['object']).columns
-        data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
+        cat_columns = df.select_dtypes(['object']).columns
+        df[cat_columns] = df[cat_columns].apply(lambda x: pd.factorize(x)[0])
         return df
 
     # def normalize_load(self, load: pd.Series) -> pd.Series:

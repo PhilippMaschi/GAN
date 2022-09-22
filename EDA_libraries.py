@@ -2,24 +2,30 @@ import pandas as pd
 from pandas_profiling import ProfileReport
 import sweetviz as sv
 from autoviz.AutoViz_Class import AutoViz_Class
+from cluster_load_profiles import ProfileLoader
 
 path = r'C:\Users\FrancescaConselvan\Desktop\MODERATE\GAN'
-def open_csv (path, name):
+
+def data_preparation (path, name):
     data = pd.read_csv(path+name)
-    cat_columns = data.select_dtypes(['object']).columns  # 'date', 'consumed energy'
-    data[cat_columns] = data[cat_columns].apply(lambda x: pd.factorize(x)[0])
+    pl = ProfileLoader(path=path)
+    data = pl.create_timestamp(df=data)
+    data = pl.from_cat_to_num(df=data)
+    """" converted obbject columns into numeric otherwise does not work """
     return data
+def pandas_profiling(data, report_title, report_name_html):
+    profile = ProfileReport(data, title=report_title)
+    profile.to_file(output_file=report_name_html)
 
 
-#pandas profiling
-profile = ProfileReport(data, title="Report")
-profile.to_file(output_file='reports\pandas_profiling.html')
+def sweet_viz(data, report_name_html):
+    report = sv.analyze(data)
+    report.show_html(report_name_html)
 
-#sweetViz
-report = sv.analyze(data)
-report.show_html('reports\sweetViz.html')
-
-#autoViz
-AV = AutoViz_Class()
-df_av = AV.AutoViz('reports\miss_val.csv')
+def auto_viz (report_name_csv):
+    AV = AutoViz_Class()
+    df_av = AV.AutoViz('report_name_csv')
 # not possible to export in HTML????
+
+
+
