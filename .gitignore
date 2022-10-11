@@ -6,3 +6,6 @@
 /.idea/vcs.xml
 /.idea
 
+*.csv
+*.xlsx
+
