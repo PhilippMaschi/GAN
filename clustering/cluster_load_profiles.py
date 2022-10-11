@@ -6,6 +6,8 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
+class LoadProfileLoader:
     def __init__(self, path):
         self.path_2_files = path  # I added the argument path so everyone can use it
 

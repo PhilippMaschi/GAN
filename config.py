@@ -9,7 +9,7 @@ class Config(ABC):
     def __init__(self):
         self.project_root: "Path" = self.setup_folder_path(Path(__file__).parent)
         # path where we store data in csv files
-        self.path_2_data: "Path" = self.setup_folder_path(self.project_root / r"data/raw_data")
+        self.path_2_data: "Path" = self.setup_folder_path(self.project_root / r"data")
         # path to where outputs of the model should be stored
         self.output_path: "Path" = self.setup_folder_path(self.project_root / "data/output")
         # paths to where created figures should be stored

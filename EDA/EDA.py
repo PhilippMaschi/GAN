@@ -1,7 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import prepare_data
+from data import prepare_data
 
 data = prepare_data.create_timestamp(df=df, date_column="date")
 

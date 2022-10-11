@@ -89,5 +89,5 @@ class DataImporter:
 
 
 if __name__ == "__main__":
-    DataImporter().main(save_json=True)
+    DataImporter().main(save_json=False)
 
