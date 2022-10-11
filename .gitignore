@@ -9,3 +9,7 @@
 *.csv
 *.xlsx
 *.json
+*.xml
+*.iml
+*.jpg
+*.html
