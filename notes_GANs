@@ -1,0 +1,21 @@
+** KEYWORDS
+n_epochs: defines how many repetitions of training using the whole training set will be performed.
+n_batch:
+latent_dim: latent space, where the noise is created
+
+** IMPORTANT PARAMETERS
+NOISE higher it is, better it is
+BATCH SIZE 8-16, max 64. if it is too high, overwhelm the discriminator or overpower the generator
+LOSS FUNCTION there are several. it is worth to try them out:
+- binary cross entropy ('vanilla GANs) --- discrete
+- Wasserstein (WGANs) ---- good
+ACTIVATION
+
+** METRIC MODELS
+
+** OPTIMIZER
+ADAM
+
+
+** LINKS
+https://towardsdatascience.com/understanding-and-optimizing-gans-going-back-to-first-principles-e5df8835ae18
