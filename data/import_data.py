@@ -74,20 +74,28 @@ class DataImporter:
         df = df.drop(columns="hour")
         return df
 
-    def main(self, save_json: bool = True) -> pd.DataFrame:
+    def main(self, load_json: bool = False) -> pd.DataFrame:
         """ provides a pandas table with all the profiles from ENERCOOP"""
-        if save_json:
+        if not load_json:
             all_profiles = self.read_all_load_profiles(self.get_csv_names())
             # save the big "all_profiles" table to a json so it can be used much faster in other scripts:
             all_profiles.to_json(self.save_results / "all_load_profiles.json")
             print("saved json file")
         else:
             # else read the json which will be much faster than reading from csv files
-            all_profiles = pd.read_json(self.save_results / "all_load_profiles.json")
+
+            # check if file is there:
+            if (self.save_results / "all_load_profiles.json").exists():
+                all_profiles = pd.read_json(self.save_results / "all_load_profiles.json")
+            else:  # if its not there proceed to generate it
+                all_profiles = self.read_all_load_profiles(self.get_csv_names())
+                # save the big "all_profiles" table to a json so it can be used much faster in other scripts:
+                all_profiles.to_json(self.save_results / "all_load_profiles.json")
+                print("saved json file")
 
         return all_profiles
 
 
 if __name__ == "__main__":
-    DataImporter().main(save_json=False)
+    DataImporter().main(load_json=False)
 
