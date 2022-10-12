@@ -6,8 +6,8 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 from data.import_data import DataImporter
-from data.prepare_data import DataPrep
 from config import Config
+import data.prepare_data as dataprep
 
 from scipy.cluster import hierarchy
 from scipy.cluster.hierarchy import cophenet, dendrogram
@@ -63,14 +63,14 @@ class Cluster:
          @return: returns a matplotlib figure with the heat map
         """
         # add hour, day and month
-        df = DataPrep().add_hour_of_the_day_to_df(df)
-        df = DataPrep().add_day_of_the_month_to_df(df)
-        df.loc[:, "month"] = DataPrep().extract_month_name_from_datetime(profiles)
+        df = dataprep.add_hour_of_the_day_to_df(df)
+        df = dataprep.add_day_of_the_month_to_df(df)
+        df.loc[:, "month"] = dataprep.extract_month_name_from_datetime(profiles)
         # prepare the dataframe so it can be plottet as heat map
         melted_df = df.melt(id_vars=["date", "hour", "day", "month"])
         pivot_df = pd.pivot_table(data=melted_df, index="hour", columns=["month", "day"], values="value")
         # sort the columns so the months are not in random order:
-        heat_map_table = DataPrep().sort_columns_months(pivot_df)
+        heat_map_table = dataprep.sort_columns_months(pivot_df)
 
         # create heat map
         fig = plt.figure()
@@ -163,8 +163,8 @@ class Visualization:
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
 
-    positive_profiles, _ = DataPrep().differentiate_positive_negative_loads(profiles)
-    normalized_df = DataPrep().normalize_all_loads(positive_profiles)
+    positive_profiles, _ = dataprep.differentiate_positive_negative_loads(profiles)
+    normalized_df = dataprep.normalize_all_loads(positive_profiles)
 
     Cluster().heat_map(normalized_df)
 
@@ -175,3 +175,5 @@ if __name__ == "__main__":
     Cluster().agglomerative_cluster(normalized_df, number_of_cluster=4)
     # kmeans cluster
     Cluster().kmeans_cluster(normalized_df, number_of_cluster=4)
+
+    # todo create function to automatically find optimal number of cluster
