@@ -54,15 +54,18 @@ class Cluster:
         plt.close()
 
 
-    def heat_map(self, df: pd.DataFrame):
+    def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
          works for a dataframe with a single load profile and for data with multiply profiles
          if multiple profiles are in the dataset the mean value for each hour of the day of all profiles is used
          in the heat map
+
+         @return: returns a matplotlib figure with the heat map
         """
-        # add hour of the day
+        # add hour, day and month
         df = DataPrep().add_hour_of_the_day_to_df(df)
         df = DataPrep().add_day_of_the_month_to_df(df)
+        df.loc[:, "month"] = DataPrep().extract_month_name_from_datetime(profiles)
         # prepare the dataframe so it can be plottet as heat map
         melted_df = df.melt(id_vars=["date", "hour", "day", "month"])
         pivot_df = pd.pivot_table(data=melted_df, index="hour", columns=["month", "day"], values="value")
@@ -70,60 +73,68 @@ class Cluster:
         heat_map_table = DataPrep().sort_columns_months(pivot_df)
 
         # create heat map
+        fig = plt.figure()
         sns.heatmap(heat_map_table)
         x_tick_labels = heat_map_table.columns.get_level_values(level=0).unique()
         ax = plt.gca()
         ax.set_xticks(np.arange(15, 365, 30))
         ax.set_xticklabels(x_tick_labels)
         plt.xlabel("month")
-        plt.tight_layout()
         # save figure
-        plt.savefig(self.figure_path / f"heat_map_loads.png")
-        plt.show()
+        # plt.savefig(self.figure_path / f"heat_map_loads.png")
+        # fig.show()
+        return fig
 
-
-
-    def split_cluster(df, title, number_of_cluster, year):
+    def agglomerative_cluster(self, df: pd.DataFrame, number_of_cluster: int):
+        # the clustering clusters after the index so we are transposing the df
+        date = df.loc[:, "date"]  # save it to merge it back for heat map
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
         # define model
-        hc = AgglomerativeClustering(n_clusters=number_of_cluster, affinity='euclidean', linkage='ward')
+        agglo_model = AgglomerativeClustering(n_clusters=number_of_cluster, affinity='euclidean', linkage='ward')
         # fit model
-        y_hc = hc.fit_predict(df)
+        y_agglo = agglo_model.fit_predict(cluster_df)
+        total_number_of_profiles = len(y_agglo)
 
-        # define the model
-        model = KMeans(n_clusters=number_of_cluster)
-        # fit the model
-        y_kmeans = model.fit_predict(df)
-
-        excel = {}
+        # plot the heat map for each cluster:
         for i in range(number_of_cluster):
-            sns.heatmap(df[y_hc == i], vmin=0, vmax=1)
-            anzahl_laender = len(df[y_hc == i])
-            plt.title("Cluster: " + str(i + 1) + " Number of countries: " + str(anzahl_laender))
-            plt.savefig("output/" + title + "/" + str(year) + "/Cluster_Nr_" + str(i + 1) + ".png", bbox_inches='tight')
+            column_names = list(cluster_df.transpose().columns)
+            column_names.insert(0, "date")
+            heat_map_df = pd.concat([date, cluster_df.loc[y_agglo == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = heat_map_df.rename(columns={
+                old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
+            })
+            fig = self.heat_map(heat_map_df)
+            ax = fig.gca()
+            percentage_number_of_profiles = round(len(cluster_df[y_agglo == i]) / total_number_of_profiles * 100, 2)
+            ax.set_title(f"Agglo cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
+            plt.tight_layout()
+            plt.savefig(self.figure_path / f"Agglo_cluster_Nr_{i+1}.png", bbox_inches='tight')
             plt.close()
 
-            # create excel with the countries of each cluster:
-            excel["Agglo " + str(i + 1)] = df[y_hc == i].index.tolist()
-
-            # Vergleich mit KMeans:
-            sns.heatmap(df[y_kmeans == i], vmin=0, vmax=1)
-            anzahl_laender = len(df[y_kmeans == i])
-            plt.title("Cluster_KMeans: " + str(i + 1) + " Number of countries: " + str(anzahl_laender))
-            plt.savefig("output/" + title + "/" + str(year) + "/Cluster_KMeans_Nr_" + str(i + 1) + ".png",
-                        bbox_inches='tight')
+    def kmeans_cluster(self, df: pd.DataFrame, number_of_cluster: int):
+        # the clustering clusters after the index so we are transposing the df
+        date = df.loc[:, "date"]  # save it to merge it back for heat map
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        # define the model
+        kmeans_model = KMeans(n_clusters=number_of_cluster)
+        # fit the model
+        y_kmeans = kmeans_model.fit_predict(cluster_df)
+        total_number_of_profiles = len(y_kmeans)
+        # plot the heat map for each cluster:
+        for i in range(number_of_cluster):
+            column_names = list(cluster_df.transpose().columns)
+            column_names.insert(0, "date")
+            heat_map_df = pd.concat([date, cluster_df.loc[y_kmeans == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = heat_map_df.rename(columns={
+                old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
+            })
+            fig = self.heat_map(heat_map_df)
+            ax = fig.gca()
+            percentage_number_of_profiles = round(len(cluster_df[y_kmeans == i]) / total_number_of_profiles * 100, 2)
+            ax.set_title(f"Kmeans cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
+            plt.tight_layout()
+            plt.savefig(self.figure_path / f"Kmeans_cluster_Nr_{i + 1}.png", bbox_inches='tight')
             plt.close()
-
-            # create excel with the countries of each cluster:
-            excel["KMeans " + str(i + 1)] = df[y_kmeans == i].index.tolist()
-
-        df_excel = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in excel.items()]))
-        df_excel.to_excel("output/" + title + "/" + str(year) + "/cluster overview.xlsx")
-
-        # create overall HEATMAP:
-        clustermap = sns.clustermap(df, method="ward")  # , cmap="vlag")
-        plt.savefig("output/" + title + "/" + str(year) + "/Clustermap.png")
-        plt.close()
-
 
 
 class Visualization:
@@ -151,11 +162,16 @@ class Visualization:
 
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
-    profiles.loc[:, "month"] = DataPrep().extract_month_name_from_datetime(profiles)
+
     positive_profiles, _ = DataPrep().differentiate_positive_negative_loads(profiles)
     normalized_df = DataPrep().normalize_all_loads(positive_profiles)
 
     Cluster().heat_map(normalized_df)
 
-    # hierachical cluster
-    Cluster().hierarchical_cluster(normalized_df)
+    # hierachical cluster to see how many clusters:
+    Cluster().hierarchical_cluster(normalized_df)  # creates a figure
+
+    # cluster with agglomerative:
+    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=4)
+    # kmeans cluster
+    Cluster().kmeans_cluster(normalized_df, number_of_cluster=4)
