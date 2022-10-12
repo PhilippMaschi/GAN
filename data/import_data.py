@@ -74,9 +74,9 @@ class DataImporter:
         df = df.drop(columns="hour")
         return df
 
-    def main(self, load_json: bool = False) -> pd.DataFrame:
+    def main(self, create_json: bool = False) -> pd.DataFrame:
         """ provides a pandas table with all the profiles from ENERCOOP"""
-        if not load_json:
+        if create_json:
             all_profiles = self.read_all_load_profiles(self.get_csv_names())
             # save the big "all_profiles" table to a json so it can be used much faster in other scripts:
             all_profiles.to_json(self.save_results / "all_load_profiles.json")
@@ -97,5 +97,5 @@ class DataImporter:
 
 
 if __name__ == "__main__":
-    DataImporter().main(load_json=False)
+    DataImporter().main(create_json=False)
 
