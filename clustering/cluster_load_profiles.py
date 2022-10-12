@@ -19,41 +19,37 @@ class Cluster:
     def __init__(self):
         self.figure_path = Config().fig_cluster
 
-    def do_cluster(self, df, title, year):
-        try:
-            os.makedirs("output/" + title + "/" + str(year))
-        except FileExistsError:
-            # directory already exists
-            pass
-        plt.figure(figsize=(12, 8))
+    def hierarchical_cluster(self, df: pd.DataFrame):
+        # the clustering clusters after the index so we are transposing the df
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
         # Calculate the distance between each sample
 
         # possible linkages are: ward, average
         linkage_method = "ward"
-        Z = hierarchy.linkage(df, linkage_method)
-        c, coph_dists = cophenet(Z, pdist(df))
-        print(c)
+        Z = hierarchy.linkage(cluster_df, linkage_method)
 
-        # Plot with Custom leaves
-        dendrogram(Z, leaf_rotation=90, show_contracted=True)  #, annotate_above=0.1)  # , truncate_mode="lastp")
+        # create figure to visualize the cluster
+        plt.figure(figsize=(12, 8))
         ax = plt.gca()
         ax.tick_params(axis='both', which='major', labelsize=18)
-        plt.title(title)
+        # Plot with Custom leaves
+        dendrogram(Z, leaf_rotation=90, show_contracted=True)#, annotate_above=0.1)  # , truncate_mode="lastp")
 
-        # set y-ticks to country names:
-        ts = pd.Series(df.index)
+        # set x-ticks to csv numbers:
+        ts = pd.Series(cluster_df.index)
         x_tick_labels = [item.get_text() for item in ax.get_xticklabels()]
         new_x_labels = []
         for label in x_tick_labels:
-            new_x_labels.append(ts[int(label)])
-
+            # exclude the A+(Wh)...
+            new_x_labels.append(ts[int(label)].replace("_A+(Wh)", "").replace("_A-(Wh)", ""))
+        # set new x_ticks
         xticks = ax.get_xticks()
         plt.xticks(xticks, new_x_labels, rotation=-90)
 
         # draw horizontal line to determine number of clusters:
         # plt.axhline(y=hight, color='black', linestyle='--')
         plt.tight_layout()
-        plt.savefig("output/" + title + "/" + str(year) + "/Total_cluster.png")
+        plt.savefig(self.figure_path / f"Hierarchical_cluster.png")
         plt.show()
         plt.close()
 
@@ -160,3 +156,6 @@ if __name__ == "__main__":
     normalized_df = DataPrep().normalize_all_loads(positive_profiles)
 
     Cluster().heat_map(normalized_df)
+
+    # hierachical cluster
+    Cluster().hierarchical_cluster(normalized_df)
