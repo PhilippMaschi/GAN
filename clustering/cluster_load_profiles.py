@@ -19,6 +19,11 @@ class Cluster:
     def __init__(self):
         self.figure_path = Config().fig_cluster
 
+    def check_figure_path(self, path: Path):
+        """ checks if dictionary exists and if not creates it"""
+        if not os.path.exists(path):
+            os.makedirs(path)
+
     def hierarchical_cluster(self, df: pd.DataFrame):
         # the clustering clusters after the index so we are transposing the df
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
@@ -108,7 +113,9 @@ class Cluster:
             percentage_number_of_profiles = round(len(cluster_df[y_agglo == i]) / total_number_of_profiles * 100, 2)
             ax.set_title(f"Agglo cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
             plt.tight_layout()
-            plt.savefig(self.figure_path / f"Agglo_cluster_Nr_{i+1}.png", bbox_inches='tight')
+            figure_path = self.figure_path / f"Agglomerative{number_of_cluster}" / f"Agglo_cluster_Nr_{i+1}.png"
+            self.check_figure_path(figure_path.parent)
+            plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
 
     def kmeans_cluster(self, df: pd.DataFrame, number_of_cluster: int):
@@ -133,7 +140,9 @@ class Cluster:
             percentage_number_of_profiles = round(len(cluster_df[y_kmeans == i]) / total_number_of_profiles * 100, 2)
             ax.set_title(f"Kmeans cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
             plt.tight_layout()
-            plt.savefig(self.figure_path / f"Kmeans_cluster_Nr_{i + 1}.png", bbox_inches='tight')
+            figure_path = self.figure_path / f"KMeans{number_of_cluster}" / f"KMeans_cluster_Nr_{i+1}.png"
+            self.check_figure_path(figure_path.parent)
+            plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
 
 
