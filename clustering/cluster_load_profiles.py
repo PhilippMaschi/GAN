@@ -12,7 +12,7 @@ import data.prepare_data as dataprep
 from scipy.cluster import hierarchy
 from scipy.cluster.hierarchy import cophenet, dendrogram
 from scipy.spatial.distance import pdist
-from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans, DBSCAN
 
 
 class Cluster:
@@ -145,26 +145,33 @@ class Cluster:
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
 
-
-class Visualization:
-    def __init__(self, df: pd.DataFrame):
-        self.df = df
-
-    def create_daily_loads(self):
-        """plits the dataframe data into daly load pieces"""
-
-        pass
-
-    def lineplot_all_loads(self):
-        melted_df = self.df.melt(id_vars="date")
-        sns.lineplot(data=melted_df, x="date", y="value", hue="variable")
-        plt.show()
-        pass
-
-
-    def main(self):
-        self.lineplot_all_loads()
-
+    def db_scan_cluster(self, df:pd.DataFrame):  # doesnt need the number of cluster!
+        # the clustering clusters after the index so we are transposing the df
+        date = df.loc[:, "date"]  # save it to merge it back for heat map
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        # TODO find the right method to cluster loads with db scan
+        db_model = DBSCAN(eps=10, min_samples=3, metric="euclidean", metric_params=None, algorithm="auto",
+                          leaf_size=30, p=None, n_jobs=None)
+        y_db = db_model.fit(cluster_df)
+        total_number_of_profiles = len(y_db)
+        number_of_outliers = len(y_db.labels_[y_db.labels_ == -1])  # outliers are marked with -1
+        # plot the heat map for each cluster:
+        for i in range(y_db):
+            column_names = list(cluster_df.transpose().columns)
+            column_names.insert(0, "date")
+            heat_map_df = pd.concat([date, cluster_df.loc[y_db == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = heat_map_df.rename(columns={
+                old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
+            })
+            fig = self.heat_map(heat_map_df)
+            ax = fig.gca()
+            percentage_number_of_profiles = round(len(cluster_df[y_db == i]) / total_number_of_profiles * 100, 2)
+            ax.set_title(f"DBSCAN cluster: {i + 1}; {percentage_number_of_profiles}% of all profiles")
+            plt.tight_layout()
+            figure_path = self.figure_path / f"DBSCAN" / f"DBSCAN_cluster_Nr_{i + 1}.png"
+            self.check_figure_path(figure_path.parent)
+            plt.savefig(figure_path, bbox_inches='tight')
+            plt.close()
 
 
 
@@ -184,5 +191,8 @@ if __name__ == "__main__":
     Cluster().agglomerative_cluster(normalized_df, number_of_cluster=4)
     # kmeans cluster
     Cluster().kmeans_cluster(normalized_df, number_of_cluster=4)
+
+    # cluster with DBSCAN
+    Cluster().db_scan_cluster(normalized_df)
 
     # todo create function to automatically find optimal number of cluster
