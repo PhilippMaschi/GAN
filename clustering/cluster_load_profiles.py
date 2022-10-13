@@ -1,3 +1,4 @@
+import time
 from typing import List
 import pandas as pd
 import numpy as np
@@ -19,7 +20,7 @@ class Cluster:
     def __init__(self):
         self.figure_path = Config().fig_cluster
 
-    def check_figure_path(self, path: Path):
+    def check_figure_path(self, path: Path) -> None:
         """ checks if dictionary exists and if not creates it"""
         if not os.path.exists(path):
             os.makedirs(path)
@@ -58,6 +59,30 @@ class Cluster:
         plt.show()
         plt.close()
 
+    def elbow_method(self, df: pd.DataFrame):
+        """
+        creates a elbow mehtod graph done by agglomerative and k-means
+        @param df: normalized dataframe
+
+        """
+        number_of_cluster = np.arange(1, 11)
+        # the clustering clusters after the index so we are transposing the df
+        date = df.loc[:, "date"]  # save it to merge it back for heat map
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        distortions_kmeans = []
+        for number in number_of_cluster:
+            kmeans_model = KMeans(n_clusters=number)
+            kmeans_model.fit_predict(cluster_df)
+            distortions_kmeans.append(kmeans_model.inertia_)
+
+        # plot the distortions so we can visualy check if the numbers are correct
+        fig = plt.figure()
+        ax = fig.gca()
+        plt.plot(number_of_cluster, distortions_kmeans)
+        plt.ylabel("Distortion")
+        plt.title("Elbow method")
+        plt.savefig(self.figure_path / "Elbow_method.png")
+        plt.show()
 
     def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
@@ -117,6 +142,7 @@ class Cluster:
             self.check_figure_path(figure_path.parent)
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
+        print(f"created {number_of_cluster} agglomerative cluster")
 
     def kmeans_cluster(self, df: pd.DataFrame, number_of_cluster: int):
         # the clustering clusters after the index so we are transposing the df
@@ -144,6 +170,7 @@ class Cluster:
             self.check_figure_path(figure_path.parent)
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
+        print(f"created {number_of_cluster} kmeans cluster")
 
     def db_scan_cluster(self, df:pd.DataFrame):  # doesnt need the number of cluster!
         # the clustering clusters after the index so we are transposing the df
@@ -151,7 +178,7 @@ class Cluster:
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
         # TODO find the right method to cluster loads with db scan
         db_model = DBSCAN(eps=10, min_samples=3, metric="euclidean", metric_params=None, algorithm="auto",
-                          leaf_size=30, p=None, n_jobs=None)
+                          leaf_size=30, p=None, n_jobs=4)
         y_db = db_model.fit(cluster_df)
         total_number_of_profiles = len(y_db)
         number_of_outliers = len(y_db.labels_[y_db.labels_ == -1])  # outliers are marked with -1
@@ -176,6 +203,9 @@ class Cluster:
 
 
 
+
+
+
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
 
@@ -183,6 +213,9 @@ if __name__ == "__main__":
     normalized_df = dataprep.normalize_all_loads(positive_profiles)
 
     Cluster().heat_map(normalized_df)
+
+    # determine optimal clusters:
+    number_kmeans, number_agglo = Cluster().elbow_method(normalized_df)
 
     # hierachical cluster to see how many clusters:
     Cluster().hierarchical_cluster(normalized_df)  # creates a figure
@@ -195,4 +228,12 @@ if __name__ == "__main__":
     # cluster with DBSCAN
     Cluster().db_scan_cluster(normalized_df)
 
+
+
+
     # todo create function to automatically find optimal number of cluster
+
+    # TODO try dtw!! (should be better for timeseries) -> Update: dtw is way too slow and resource intensive
+    # TODO try hdbscan
+    #
+    #  and SAX (maybe for nicer heat maps - noise reduction)
