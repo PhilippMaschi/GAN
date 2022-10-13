@@ -1,6 +1,7 @@
 """ This script will contain functions that help prepare the data"""
 
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 
 def create_timestamp(df, date_column) -> pd.DataFrame:
@@ -32,15 +33,13 @@ def normalize_all_loads(df: pd.DataFrame) -> pd.DataFrame:
     @param df: dataframe with load profiles
 
     """
-    columns2normalize = [name for name in df.columns if "Wh" in name]
-    for column_name in columns2normalize:
-        load_values = df.loc[:, column_name].astype(float)
-        max_value = load_values.max()
-        min_value = load_values.min()
-        # replace the column with normalized values
-        df.loc[:, column_name] = (load_values - min_value) / (max_value - min_value)
-
-    return df
+    columns2drop = [name for name in df.columns if not "Wh" in name]  # define columns that are not normalized
+    date = df.loc[:, "date"]  # save date column
+    normalized = MinMaxScaler().fit_transform(df.drop(columns=columns2drop))  # normalize data
+    normalized_df = pd.DataFrame(normalized)  # to pd dataframe
+    normalized_df.insert(loc=0, column="date", value=date)  # insert the date column at first position
+    normalized_df.columns = df.columns  # get the column names back
+    return normalized_df
 
 
 def extract_month_name_from_datetime(df: pd.DataFrame) -> list:
@@ -107,5 +106,3 @@ def sort_columns_months(df: pd.DataFrame) -> pd.DataFrame:
     ]
     df = df[column_names]
     return df
-
-
