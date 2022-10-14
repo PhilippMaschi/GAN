@@ -59,15 +59,15 @@ class Cluster:
         plt.show()
         plt.close()
 
-    def elbow_method(self, df: pd.DataFrame):
+    def elbow_method(self, df: pd.DataFrame) -> int:
         """
-        creates a elbow mehtod graph done by agglomerative and k-means
+        creates a elbow mehtod graph done k-means
         @param df: normalized dataframe
+        @return: returns the optimal number of cluster
 
         """
         number_of_cluster = np.arange(1, 11)
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "date"]  # save it to merge it back for heat map
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
         distortions_kmeans = []
         for number in number_of_cluster:
@@ -75,14 +75,31 @@ class Cluster:
             kmeans_model.fit_predict(cluster_df)
             distortions_kmeans.append(kmeans_model.inertia_)
 
+        # calculate the delta1, delta2 and the strength of each cluster after
+        # https://www.datasciencecentral.com/how-to-automatically-determine-the-number-of-clusters-in-your-dat/
+        delta1 = [distortions_kmeans[i] - distortions_kmeans[i+1] for i in range(len(distortions_kmeans)) if i < len(distortions_kmeans)-1]
+        delta2 = [delta1[i] - delta1[i+1] for i in range(len(delta1)) if i < len(delta1)-1]
+        delta1.insert(0, 0)
+        delta2.insert(0, 0)
+        delta2.insert(0, 0)
+        strength = np.array(delta2) - np.array(delta1)
+        # optimal cluster number is where the strength has its maximum
+        # since python starts counting at 0 number of cluster is +1 and the strength is defined as the difference
+        # of the delta2-delta1 at number of cluster +1 we don't need to add anything to the index:
+        optimal_number = np.argmax(strength)
+        print(f"optimal number of clusters was found to be: {optimal_number}")
         # plot the distortions so we can visualy check if the numbers are correct
         fig = plt.figure()
         ax = fig.gca()
         plt.plot(number_of_cluster, distortions_kmeans)
+        ymin, ymax = ax.get_ylim()
+        plt.vlines(x=optimal_number, ymin=ymin, ymax=ymax, colors="red")
         plt.ylabel("Distortion")
         plt.title("Elbow method")
         plt.savefig(self.figure_path / "Elbow_method.png")
         plt.show()
+
+        return int(optimal_number)
 
     def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
@@ -215,15 +232,15 @@ if __name__ == "__main__":
     Cluster().heat_map(normalized_df)
 
     # determine optimal clusters:
-    number_kmeans, number_agglo = Cluster().elbow_method(normalized_df)
+    number_of_cluster = Cluster().elbow_method(normalized_df)
 
     # hierachical cluster to see how many clusters:
     Cluster().hierarchical_cluster(normalized_df)  # creates a figure
 
     # cluster with agglomerative:
-    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=4)
+    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
     # kmeans cluster
-    Cluster().kmeans_cluster(normalized_df, number_of_cluster=4)
+    Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
 
     # cluster with DBSCAN
     Cluster().db_scan_cluster(normalized_df)
