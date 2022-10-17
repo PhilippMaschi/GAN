@@ -15,6 +15,7 @@ from scipy.cluster.hierarchy import cophenet, dendrogram
 from scipy.spatial.distance import pdist
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering, KMeans, DBSCAN
+import hdbscan
 
 
 class Cluster:
@@ -40,7 +41,7 @@ class Cluster:
         ax = plt.gca()
         ax.tick_params(axis='both', which='major', labelsize=18)
         # Plot with Custom leaves
-        dendrogram(Z, leaf_rotation=90, show_contracted=True)#, annotate_above=0.1)  # , truncate_mode="lastp")
+        dendrogram(Z, leaf_rotation=90, show_contracted=True)  # , annotate_above=0.1)  # , truncate_mode="lastp")
 
         # set x-ticks to csv numbers:
         ts = pd.Series(cluster_df.index)
@@ -176,9 +177,9 @@ class Cluster:
             fig = self.heat_map(heat_map_df)
             ax = fig.gca()
             percentage_number_of_profiles = round(len(cluster_df[y_agglo == i]) / total_number_of_profiles * 100, 2)
-            ax.set_title(f"Agglo cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
+            ax.set_title(f"Agglo cluster: {i + 1}; {percentage_number_of_profiles}% of all profiles")
             plt.tight_layout()
-            figure_path = self.figure_path / f"Agglomerative{number_of_cluster}" / f"Agglo_cluster_Nr_{i+1}.png"
+            figure_path = self.figure_path / f"Agglomerative{number_of_cluster}" / f"Agglo_cluster_Nr_{i + 1}.png"
             self.check_figure_path(figure_path.parent)
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
@@ -204,15 +205,15 @@ class Cluster:
             fig = self.heat_map(heat_map_df)
             ax = fig.gca()
             percentage_number_of_profiles = round(len(cluster_df[y_kmeans == i]) / total_number_of_profiles * 100, 2)
-            ax.set_title(f"Kmeans cluster: {i+1}; {percentage_number_of_profiles}% of all profiles")
+            ax.set_title(f"Kmeans cluster: {i + 1}; {percentage_number_of_profiles}% of all profiles")
             plt.tight_layout()
-            figure_path = self.figure_path / f"KMeans{number_of_cluster}" / f"KMeans_cluster_Nr_{i+1}.png"
+            figure_path = self.figure_path / f"KMeans{number_of_cluster}" / f"KMeans_cluster_Nr_{i + 1}.png"
             self.check_figure_path(figure_path.parent)
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
         print(f"created {number_of_cluster} kmeans cluster")
 
-    def db_scan_cluster(self, df:pd.DataFrame):  # doesnt need the number of cluster!
+    def db_scan_cluster(self, df: pd.DataFrame):  # doesnt need the number of cluster!
         # the clustering clusters after the index so we are transposing the df
         date = df.loc[:, "date"]  # save it to merge it back for heat map
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
@@ -240,11 +241,43 @@ class Cluster:
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
 
+    def cluster_hdb_scan(self, df: pd.DataFrame):
+        # the clustering clusters after the index so we are transposing the df
+        date = df.loc[:, "date"]  # save it to merge it back for heat map
+        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        model_hdb_scan = hdbscan.HDBSCAN(algorithm='best',
+                                         approx_min_span_tree=True,
+                                         gen_min_span_tree=False,
+                                         metric='euclidean',
+                                         min_cluster_size=2,
+                                         min_samples=1,
+                                         p=None)
+        model_hdb_scan.fit(cluster_df)
+
+        labels = model_hdb_scan.labels_
+        number_of_outliers = len(labels[labels == -1])
+        number_of_cluster = model_hdb_scan.labels_.max()
+        total_number_of_profiles = len(labels)
 
 
+        # plot the heat map for each cluster:
+        for i in range(number_of_cluster):
+            column_names = list(cluster_df.transpose().columns)
+            column_names.insert(0, "date")
 
-
-
+            heat_map_df = pd.concat([date, cluster_df.loc[labels == i+1, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = heat_map_df.rename(columns={
+                old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
+            })
+            fig = self.heat_map(heat_map_df)
+            ax = fig.gca()
+            percentage_number_of_profiles = round(len(cluster_df[labels == i]) / total_number_of_profiles * 100, 2)
+            ax.set_title(f"HDBSCAN cluster: {i + 1}; {percentage_number_of_profiles}% of all profiles")
+            plt.tight_layout()
+            figure_path = self.figure_path / f"HDBSCAN" / f"HDBSCAN_cluster_Nr_{i + 1}.png"
+            self.check_figure_path(figure_path.parent)
+            plt.savefig(figure_path, bbox_inches='tight')
+            plt.close()
 
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
@@ -265,13 +298,10 @@ if __name__ == "__main__":
     # kmeans cluster
     Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
 
+    Cluster().cluster_hdb_scan(normalized_df)
     # cluster with DBSCAN
     Cluster().db_scan_cluster(normalized_df)
 
-
-
-
-    # todo create function to automatically find optimal number of cluster
 
     # TODO try dtw!! (should be better for timeseries) -> Update: dtw is way too slow and resource intensive
     # TODO try hdbscan
