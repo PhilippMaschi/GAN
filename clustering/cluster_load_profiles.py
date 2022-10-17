@@ -13,6 +13,7 @@ import data.prepare_data as dataprep
 from scipy.cluster import hierarchy
 from scipy.cluster.hierarchy import cophenet, dendrogram
 from scipy.spatial.distance import pdist
+from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering, KMeans, DBSCAN
 
 
@@ -61,45 +62,67 @@ class Cluster:
 
     def elbow_method(self, df: pd.DataFrame) -> int:
         """
-        creates a elbow mehtod graph done k-means
+        creates a elbow method graph done k-means
         @param df: normalized dataframe
         @return: returns the optimal number of cluster
 
+        CAREFUL, DEPENDING ON HOW KMEANS IS INITIALIZED THE CLUSTERS ARE NOT ALWAYS THE EXACT SAME, thus also
+        the optimal number of cluster can change when running it multiple times, which is idk...
         """
         number_of_cluster = np.arange(1, 11)
         # the clustering clusters after the index so we are transposing the df
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
-        distortions_kmeans = []
+        inertia = []
+        distortions = []
         for number in number_of_cluster:
             kmeans_model = KMeans(n_clusters=number)
             kmeans_model.fit_predict(cluster_df)
-            distortions_kmeans.append(kmeans_model.inertia_)
+            inertia.append(kmeans_model.inertia_)
+            distortions.append(sum(np.min(cdist(cluster_df, kmeans_model.cluster_centers_,
+                                                'euclidean'), axis=1)) / cluster_df.shape[0])
 
-        # calculate the delta1, delta2 and the strength of each cluster after
-        # https://www.datasciencecentral.com/how-to-automatically-determine-the-number-of-clusters-in-your-dat/
-        delta1 = [distortions_kmeans[i] - distortions_kmeans[i+1] for i in range(len(distortions_kmeans)) if i < len(distortions_kmeans)-1]
-        delta2 = [delta1[i] - delta1[i+1] for i in range(len(delta1)) if i < len(delta1)-1]
-        delta1.insert(0, 0)
-        delta2.insert(0, 0)
-        delta2.insert(0, 0)
-        strength = np.array(delta2) - np.array(delta1)
-        # optimal cluster number is where the strength has its maximum
-        # since python starts counting at 0 number of cluster is +1 and the strength is defined as the difference
-        # of the delta2-delta1 at number of cluster +1 we don't need to add anything to the index:
-        optimal_number = np.argmax(strength)
+        def calculate_optimal_number(criterion: list) -> int:
+            # calculate the delta1, delta2 and the strength of each cluster after
+            # https://www.datasciencecentral.com/how-to-automatically-determine-the-number-of-clusters-in-your-dat/
+            delta1 = [criterion[i] - criterion[i + 1] for i in range(len(criterion)) if i < len(criterion) - 1]
+            delta2 = [delta1[i] - delta1[i + 1] for i in range(len(delta1)) if i < len(delta1) - 1]
+            delta1.insert(0, np.nan)
+            delta2.insert(0, np.nan)
+            delta2.insert(0, np.nan)
+
+            strength = np.array(delta2) - np.array(delta1)
+            # optimal cluster number is where the strength has its maximum
+            # since python starts counting at 0 number of cluster is +1 and the strength is defined as the difference
+            # of the delta2-delta1 at number of cluster +1 we don't need to add anything to the index:
+            strength = strength[~np.isnan(strength)]
+            # remove first two clusters because they are nan, add + 2 to optimal number
+            number_optimal = int(np.argmax(strength)) + 2
+            return number_optimal
+
+        optimal_number = calculate_optimal_number(distortions)
+        optimal_number_2 = calculate_optimal_number(inertia)
+
         print(f"optimal number of clusters was found to be: {optimal_number}")
         # plot the distortions so we can visualy check if the numbers are correct
         fig = plt.figure()
         ax = fig.gca()
-        plt.plot(number_of_cluster, distortions_kmeans)
+        plt.plot(number_of_cluster, inertia)
         ymin, ymax = ax.get_ylim()
-        plt.vlines(x=optimal_number, ymin=ymin, ymax=ymax, colors="red")
-        plt.ylabel("Distortion")
+        plt.vlines(x=optimal_number, ymin=ymin, ymax=ymax, colors="red", label="distortion")
+        plt.vlines(x=optimal_number_2, ymin=ymin, ymax=ymax, colors="green", label="inertia", linestyles="--")
+        plt.ylabel("inertia")
+        plt.legend()
         plt.title("Elbow method")
         plt.savefig(self.figure_path / "Elbow_method.png")
         plt.show()
 
-        return int(optimal_number)
+        # check if the two methods come to the same result
+        if optimal_number == optimal_number_2:
+            print(f"optimal number is dependent on methode (inertia, distortion) \n "
+                  f"using the higher number which is {max([optimal_number, optimal_number_2])}")
+            optimal_number = max([optimal_number, optimal_number_2])
+
+        return optimal_number
 
     def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
