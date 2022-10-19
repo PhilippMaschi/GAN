@@ -2,6 +2,7 @@
 
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 
 
 def create_timestamp(df, date_column) -> pd.DataFrame:
@@ -106,3 +107,11 @@ def sort_columns_months(df: pd.DataFrame) -> pd.DataFrame:
     ]
     df = df[column_names]
     return df
+
+def define_float_type(df: pd.DataFrame) -> pd.DataFrame:
+    """ the data is converted to flaot32 in order to save memory and increase computational speed"""
+    df[df.select_dtypes(np.float64).columns] = df.select_dtypes(np.float64).astype(np.float32)
+    return df
+
+
+
