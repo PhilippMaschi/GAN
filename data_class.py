@@ -6,7 +6,7 @@ import pandas as pd
 class Data:
     def __init__(self):
         # ENERCOOP
-        self.ENERCOOP_path = r'C:\Users\Daniel\Projekte\Moderate\Data\ENERCOOP'
+        self.ENERCOOP_path = r'C:\Users\Daniel\Projekte\MODERATE\Data\ENERCOOP'
         self.ENERCOOP_filenames = sorted(glob.glob(self.ENERCOOP_path + '/*.csv'), key = len)   #file paths in a natural sort order
         self.df_ENERCOOP = self.import_and_preprocess_ENERCOOP_files()
     

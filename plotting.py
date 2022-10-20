@@ -1,4 +1,5 @@
 import plotly.express as px
+import numpy as np
 
 def plot_ENERCOOP_data(df_ENERCOOP):
     figs = {}
@@ -32,5 +33,19 @@ def plot_ENERCOOP_data(df_ENERCOOP):
         'width': 1366,
         'height': 768
     })
-    fig.write_html('ENERCOOP_load_profiles.html')
+    return fig
+
+
+def plot_cumulated_explained_variance(pca_fit):
+    exp_var_cum = np.cumsum(pca_fit.explained_variance_ratio_)
+    fig = px.area(
+        x = range(1, exp_var_cum.shape[0] + 1),
+        y = exp_var_cum,
+        labels = {'x': 'Number of components', 'y': 'Explained variance'},
+        title = 'Cumulated explained variance'
+    )
+    fig.update_layout({
+        'width': 720,
+        'height': 576
+    })
     return fig
