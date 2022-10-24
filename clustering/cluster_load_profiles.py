@@ -70,7 +70,7 @@ class Cluster:
         CAREFUL, DEPENDING ON HOW KMEANS IS INITIALIZED THE CLUSTERS ARE NOT ALWAYS THE EXACT SAME, thus also
         the optimal number of cluster can change when running it multiple times, which is idk...
         """
-        number_of_cluster = np.arange(1, 11)
+        number_of_cluster = np.arange(1, 30)
         # the clustering clusters after the index so we are transposing the df
         cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
         inertia = []
@@ -284,6 +284,8 @@ if __name__ == "__main__":
 
     positive_profiles, _ = dataprep.differentiate_positive_negative_loads(profiles)
     normalized_df = dataprep.normalize_all_loads(positive_profiles)
+    # convert to float32:
+    normalized_df = dataprep.define_float_type(normalized_df)
 
     Cluster().heat_map(normalized_df)
 
