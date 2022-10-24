@@ -1,0 +1,10 @@
+* hours column: 25???? what does it mean?
+change it in the code: 23h
+
+* how to treat 0 values????
+is a real-zero
+
+* how to treat outliers
+
+* data normalization
+value/max = 0-1
