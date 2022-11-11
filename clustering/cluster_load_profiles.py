@@ -27,9 +27,13 @@ class Cluster:
         if not os.path.exists(path):
             os.makedirs(path)
 
+    def drop_date_related_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """ drops all the date related columns leaving only load columns"""
+        return df.drop(columns=["Hour", "Day", "Month", "Date"])
+
     def hierarchical_cluster(self, df: pd.DataFrame):
         # the clustering clusters after the index so we are transposing the df
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        cluster_df = self.drop_date_related_columns(df).transpose()
         # Calculate the distance between each sample
 
         # possible linkages are: ward, average
@@ -72,7 +76,7 @@ class Cluster:
         """
         number_of_cluster = np.arange(1, 30)
         # the clustering clusters after the index so we are transposing the df
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        cluster_df = self.drop_date_related_columns(df).transpose()
         inertia = []
         distortions = []
         for number in number_of_cluster:
@@ -81,6 +85,7 @@ class Cluster:
             inertia.append(kmeans_model.inertia_)
             distortions.append(sum(np.min(cdist(cluster_df, kmeans_model.cluster_centers_,
                                                 'euclidean'), axis=1)) / cluster_df.shape[0])
+            print(f"fiting kmeans with {number} cluster")
 
         def calculate_optimal_number(criterion: list) -> int:
             # calculate the delta1, delta2 and the strength of each cluster after
@@ -118,7 +123,7 @@ class Cluster:
         plt.show()
 
         # check if the two methods come to the same result
-        if optimal_number == optimal_number_2:
+        if optimal_number != optimal_number_2:
             print(f"optimal number is dependent on methode (inertia, distortion) \n "
                   f"using the higher number which is {max([optimal_number, optimal_number_2])}")
             optimal_number = max([optimal_number, optimal_number_2])
@@ -136,10 +141,10 @@ class Cluster:
         # add hour, day and month
         df = dataprep.add_hour_of_the_day_to_df(df)
         df = dataprep.add_day_of_the_month_to_df(df)
-        df.loc[:, "month"] = dataprep.extract_month_name_from_datetime(profiles)
+        df.loc[:, "Month"] = dataprep.extract_month_name_from_datetime(profiles)
         # prepare the dataframe so it can be plottet as heat map
-        melted_df = df.melt(id_vars=["date", "hour", "day", "month"])
-        pivot_df = pd.pivot_table(data=melted_df, index="hour", columns=["month", "day"], values="value")
+        melted_df = df.melt(id_vars=["Date", "Hour", "Day", "Month"])
+        pivot_df = pd.pivot_table(data=melted_df, index="Hour", columns=["Month", "Day"], values="value")
         # sort the columns so the months are not in random order:
         heat_map_table = dataprep.sort_columns_months(pivot_df)
 
@@ -158,8 +163,8 @@ class Cluster:
 
     def agglomerative_cluster(self, df: pd.DataFrame, number_of_cluster: int):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "date"]  # save it to merge it back for heat map
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        date = df.loc[:, "Date"]  # save it to merge it back for heat map
+        cluster_df = self.drop_date_related_columns(df).transpose()
         # define model
         agglo_model = AgglomerativeClustering(n_clusters=number_of_cluster, affinity='euclidean', linkage='ward')
         # fit model
@@ -169,7 +174,7 @@ class Cluster:
         # plot the heat map for each cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
-            column_names.insert(0, "date")
+            column_names.insert(0, "Date")
             heat_map_df = pd.concat([date, cluster_df.loc[y_agglo == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
@@ -187,8 +192,8 @@ class Cluster:
 
     def kmeans_cluster(self, df: pd.DataFrame, number_of_cluster: int):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "date"]  # save it to merge it back for heat map
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        date = df.loc[:, "Date"]  # save it to merge it back for heat map
+        cluster_df = self.drop_date_related_columns(df).transpose()
         # define the model
         kmeans_model = KMeans(n_clusters=number_of_cluster)
         # fit the model
@@ -197,7 +202,7 @@ class Cluster:
         # plot the heat map for each cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
-            column_names.insert(0, "date")
+            column_names.insert(0, "Date")
             heat_map_df = pd.concat([date, cluster_df.loc[y_kmeans == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
@@ -215,8 +220,8 @@ class Cluster:
 
     def db_scan_cluster(self, df: pd.DataFrame):  # doesnt need the number of cluster!
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "date"]  # save it to merge it back for heat map
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        date = df.loc[:, "Date"]  # save it to merge it back for heat map
+        cluster_df = self.drop_date_related_columns(df).transpose()
         # TODO find the right method to cluster loads with db scan
         db_model = DBSCAN(eps=10, min_samples=3, metric="euclidean", metric_params=None, algorithm="auto",
                           leaf_size=30, p=None, n_jobs=4)
@@ -226,7 +231,7 @@ class Cluster:
         # plot the heat map for each cluster:
         for i in range(y_db):
             column_names = list(cluster_df.transpose().columns)
-            column_names.insert(0, "date")
+            column_names.insert(0, "Date")
             heat_map_df = pd.concat([date, cluster_df.loc[y_db == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
@@ -243,8 +248,8 @@ class Cluster:
 
     def cluster_hdb_scan(self, df: pd.DataFrame):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "date"]  # save it to merge it back for heat map
-        cluster_df = df.drop(columns=["hour", "day", "month", "date"]).transpose()
+        date = df.loc[:, "Date"]  # save it to merge it back for heat map
+        cluster_df = self.drop_date_related_columns(df).transpose()
         model_hdb_scan = hdbscan.HDBSCAN(algorithm='best',
                                          approx_min_span_tree=True,
                                          gen_min_span_tree=False,
@@ -263,7 +268,7 @@ class Cluster:
         # plot the heat map for each cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
-            column_names.insert(0, "date")
+            column_names.insert(0, "Date")
 
             heat_map_df = pd.concat([date, cluster_df.loc[labels == i+1, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
@@ -282,8 +287,7 @@ class Cluster:
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
 
-    positive_profiles, _ = dataprep.differentiate_positive_negative_loads(profiles)
-    normalized_df = dataprep.normalize_all_loads(positive_profiles)
+    normalized_df = dataprep.normalize_all_loads(profiles)
     # convert to float32:
     normalized_df = dataprep.define_float_type(normalized_df)
 
@@ -306,6 +310,6 @@ if __name__ == "__main__":
 
 
     # TODO try dtw!! (should be better for timeseries) -> Update: dtw is way too slow and resource intensive
-    # TODO try hdbscan
+
     #
     #  and SAX (maybe for nicer heat maps - noise reduction)
