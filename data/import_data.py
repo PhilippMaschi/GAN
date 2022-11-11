@@ -23,7 +23,7 @@ class DataImporter:
         first_id = ids[0]
         base_table = table.loc[table.loc[:, "User ID"] == first_id, ["Date"]].reset_index(drop=True)
         for id in ids:
-            base_table.loc[:, f"Consumed Energy (Wh) {id}"] = table.loc[table.loc[:, "User ID"] == id, ["Consumed Energy (Wh)"]].reset_index(drop=True)
+            base_table.loc[:, f"{id}"] = table.loc[table.loc[:, "User ID"] == id, ["Consumed Energy (Wh)"]].reset_index(drop=True)
             # base_table.loc[:, f"Exported Energy (Wh) {id}"] = table.loc[table.loc[:, "User ID"] == id, ["Exported Energy (Wh)"]].reset_index(drop=True)
             # TODO create a table for Exported Energy and drop the households that have no PV from that
         return base_table
