@@ -34,7 +34,7 @@ class DataImporter:
             file = Path(self.path2data) / Path(name)
             load = self.read_load_profile(file)
             # bring the table from long format into wide:
-            load_in_columns_df = self.rearange_table(load)
+            load_in_columns_df = self.rearange_table(load).dropna(how="any", axis=1)  # drop profiles that contain nan
             if i == 0:  # in the first loop the dataframe is not merged
                 # rename columns
                 base_table = load_in_columns_df
@@ -50,8 +50,7 @@ class DataImporter:
                 print(f"added {name} to df")
 
         # check if nan are in the base table if the datetimes of the dataframes are not the same
-        if base_table.isna().all().all():
-            print("NAN in dataframe!")
+        assert not base_table.isna().all().all(), "NAN in dataframe!"
         return base_table
 
     def check_user_ids(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -69,7 +68,7 @@ class DataImporter:
 
     def read_load_profile(self, path2file: "Path") -> pd.DataFrame:
         """ loads an ENERCOOP profile and changes the date to a datetime object and drops useless columns"""
-        load_df = pd.read_csv(path2file, decimal=",").dropna(how="all", axis=1)
+        load_df = pd.read_csv(path2file, decimal=",")
         df1 = DataImporter().drop_useless_columns(load_df)
         df2 = self.check_user_ids(df1)
         load = DataImporter().create_timestamp(df2)
