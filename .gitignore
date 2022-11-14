@@ -1,7 +1,6 @@
 _pycache_/
 data/
 test.ipynb
-main.ipynb
 *.html
 *.png
 output/
