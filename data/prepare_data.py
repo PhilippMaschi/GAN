@@ -129,7 +129,7 @@ def crop_data_to_one_year(df: pd.DataFrame) -> pd.DataFrame:
             previous_cut_index = i
 
     # cut index represents the start of the dataframe, add 8760 hours:
-    return df.iloc[cut_index:cut_index+8760, :]
+    return df.iloc[cut_index:cut_index+8760, :].reset_index(drop=True)
 
 
 def split_profiles_to_days(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
@@ -170,3 +170,13 @@ def split_profiles_to_days(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.
             previous_cut_index = i
 
     return daily_df_summer, daily_df_winter, daily_df_spring, daily_df_autumn
+
+
+def split_profiles_to_seasons(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    """ returns 4 pandas dataframes with seasonal loads for each season (summer, winter, spring, autumn)"""
+    df.loc[:, "season"] = determine_season(df)
+    winter = df.loc[df.loc[:, "season"] == "winter", :].reset_index(drop=True)
+    spring = df.loc[df.loc[:, "season"] == "spring", :].reset_index(drop=True)
+    summer = df.loc[df.loc[:, "season"] == "summer", :].reset_index(drop=True)
+    autumn = df.loc[df.loc[:, "season"] == "autumn", :].reset_index(drop=True)
+    return summer, winter, spring, autumn
