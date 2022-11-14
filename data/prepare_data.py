@@ -114,5 +114,59 @@ def determine_season(df: pd.DataFrame) -> list:
     return [season_names[season] for season in season_list]
 
 
+def crop_data_to_one_year(df: pd.DataFrame) -> pd.DataFrame:
+    """ returns the data for exactly 8760 hours"""
+    # determine start of data (first day where all hours are available:
+    day_of_month = df.Date.dt.day.to_numpy()
+    previous_cut_index = 0
+    for i, day in enumerate(day_of_month):
+        if i == 0:
+            continue
+        if day - day_of_month[i - 1] != 0:
+            cut_index = i
+            if cut_index - previous_cut_index != 24:
+                break
+            previous_cut_index = i
+
+    # cut index represents the start of the dataframe, add 8760 hours:
+    return df.iloc[cut_index:cut_index+8760, :]
 
 
+def split_profiles_to_days(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+    """ returns 4 pandas dataframes with daily loads for each season (summer, winter, spring, autumn)"""
+    daily_df_summer = pd.DataFrame(index=np.arange(24))
+    daily_df_winter = pd.DataFrame(index=np.arange(24))
+    daily_df_spring = pd.DataFrame(index=np.arange(24))
+    daily_df_autumn = pd.DataFrame(index=np.arange(24))
+    df.loc[:, "season"] = determine_season(df)
+    day_of_month = df.Date.dt.day.to_numpy()
+    previous_cut_index = 0
+    for i, day in enumerate(day_of_month):
+        if i == 0:
+            continue
+        if day - day_of_month[i - 1] != 0:
+            # new day
+            cut_index = i
+            cutted_df = df.iloc[previous_cut_index:cut_index, :].reset_index(drop=True)
+            if len(cutted_df) < 24:
+                previous_cut_index = i
+                continue  # dont save days where an hour is missing at the beginning or the end of the profile
+            season = cutted_df.loc[0, "season"]
+            if season == "summer":
+                daily_df_summer = pd.concat([daily_df_summer, cutted_df.drop(columns=["Date", "season"])],
+                                                 axis=1)
+            elif season == "winter":
+                daily_df_winter = pd.concat([daily_df_winter, cutted_df.drop(columns=["Date", "season"])],
+                                                 axis=1)
+            elif season == "spring":
+                daily_df_spring = pd.concat([daily_df_spring, cutted_df.drop(columns=["Date", "season"])],
+                                                 axis=1)
+            elif season == "autumn":
+                daily_df_autumn = pd.concat([daily_df_autumn, cutted_df.drop(columns=["Date", "season"])],
+                                                 axis=1)
+            else:
+                assert False, f"season {season} does not exist"
+            # update previous cut index
+            previous_cut_index = i
+
+    return daily_df_summer, daily_df_winter, daily_df_spring, daily_df_autumn
