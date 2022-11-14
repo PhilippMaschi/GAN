@@ -104,4 +104,15 @@ def define_float_type(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def determine_season(df: pd.DataFrame) -> list:
+    season_names = {1: "winter",
+                    2: "spring",
+                    3: "summer",
+                    4: "autumn"}
+
+    season_list = list(df.Date.dt.month % 12 // 3 + 1)
+    return [season_names[season] for season in season_list]
+
+
+
 

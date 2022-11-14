@@ -295,6 +295,7 @@ if __name__ == "__main__":
 
     # determine optimal clusters:
     number_of_cluster = Cluster().elbow_method(normalized_df)
+    # number_of_cluster = 12
 
     # hierachical cluster to see how many clusters:
     Cluster().hierarchical_cluster(normalized_df)  # creates a figure

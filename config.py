@@ -15,6 +15,8 @@ class Config(ABC):
         # paths to where created figures should be stored
         self.fig_eda: "Path" = self.setup_folder_path(self.project_root / r"EDA/figures")
         self.fig_cluster: "Path" = self.setup_folder_path(self.project_root / r"clustering/figures")
+        # paths for GAN
+        self.gan_path: "Path" = self.setup_folder_path(self.project_root / r"GAN")
 
 
     @staticmethod
