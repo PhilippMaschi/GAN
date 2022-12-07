@@ -82,9 +82,4 @@ corrMatrix = data.corr()
 ax = sns.heatmap(corrMatrix, annot=True)
 plt.show()
 
-# TODO: multivariate analysis (????)
 
-
-## DATA NORMALIZATION
-
-# TODO: normalize data
