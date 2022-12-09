@@ -175,8 +175,8 @@ def split_profiles_to_days(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.
 def split_profiles_to_seasons(df: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame):
     """ returns 4 pandas dataframes with seasonal loads for each season (summer, winter, spring, autumn)"""
     df.loc[:, "season"] = determine_season(df)
-    winter = df.loc[df.loc[:, "season"] == "winter", :].reset_index(drop=True)
-    spring = df.loc[df.loc[:, "season"] == "spring", :].reset_index(drop=True)
-    summer = df.loc[df.loc[:, "season"] == "summer", :].reset_index(drop=True)
-    autumn = df.loc[df.loc[:, "season"] == "autumn", :].reset_index(drop=True)
+    winter = df.loc[df.loc[:, "season"] == "winter", :].reset_index(drop=True).drop(columns=["season"])
+    spring = df.loc[df.loc[:, "season"] == "spring", :].reset_index(drop=True).drop(columns=["season"])
+    summer = df.loc[df.loc[:, "season"] == "summer", :].reset_index(drop=True).drop(columns=["season"])
+    autumn = df.loc[df.loc[:, "season"] == "autumn", :].reset_index(drop=True).drop(columns=["season"])
     return summer, winter, spring, autumn
