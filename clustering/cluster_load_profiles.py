@@ -9,6 +9,7 @@ import seaborn as sns
 from data.import_data import DataImporter
 from config import Config
 import data.prepare_data as dataprep
+import inspect
 
 from scipy.cluster import hierarchy
 from scipy.cluster.hierarchy import cophenet, dendrogram
@@ -133,7 +134,7 @@ class Cluster:
         plt.savefig(self.figure_path / "Gap_analysis.png")
         plt.show()
 
-    def plot_davies_bouldin_index(self, bouldin_list: list, k_range: np.array, min_davies: int) -> None:
+    def plot_davies_bouldin_index(self, bouldin_list: list, k_range: np.array, min_davies: int, algorithm: str) -> None:
         plt.plot(k_range, bouldin_list, label="davies bouldin index", marker="D")
         plt.xlabel("k")
         plt.ylabel("davies bouldin value")
@@ -144,11 +145,11 @@ class Cluster:
                    linestyles="--", colors="black")
         plt.legend()
         plt.grid()
-        plt.title("Davies Bouldin score for KMeans Clustering")
-        plt.savefig(self.figure_path / "Davies_Bouldin_analysis.png")
+        plt.title(f"Davies Bouldin score for {algorithm} Clustering")
+        plt.savefig(self.figure_path / f"Davies_Bouldin_analysis_{algorithm}.png")
         plt.show()
 
-    def davies_bouldin_analysis(self,  X, clusterer, k_range: np.array) -> list:
+    def davies_bouldin_analysis(self,  X, clusterer, k_range: np.array) -> (list, list):
         """
         Calculate the davies bouldin statistic for a given clustering algorithm and dataset.
 
@@ -158,14 +159,22 @@ class Cluster:
         - k_range: a range of values for the number of clusters
 
         Returns:
-        - davies bouldin (list): the gap statistic
+        - davies bouldin (list): the davies bouldin statistic
         """
-        davies_bouldin = []
+        cluster_kmeans = KMeans()
+        cluster_agglo = AgglomerativeClustering()
+        davies_bouldin_kmeans = []
+        davies_bouldin_agglo = []
         for k in k_range:
-            clusterer.set_params(n_clusters=k)
-            model = clusterer.fit_predict(X)
-            davies_bouldin.append(davies_bouldin_score(X, model))
-        return davies_bouldin
+            cluster_kmeans.set_params(n_clusters=k)
+            cluster_agglo.set_params(n_clusters=k)
+
+            model_kmeans = cluster_kmeans.fit_predict(X)
+            model_agglo = cluster_agglo.fit_predict(X)
+            davies_bouldin_kmeans.append(davies_bouldin_score(X, model_kmeans))
+            davies_bouldin_agglo.append(davies_bouldin_score(X, model_agglo))
+
+        return davies_bouldin_kmeans, davies_bouldin_agglo
 
     def find_number_of_cluster(self, df: pd.DataFrame, k_range: np.array) -> None:
         """
@@ -179,37 +188,47 @@ class Cluster:
         cluster_df = df.transpose()
         model = KMeans()
 
-        visualizer_distortion = KElbowVisualizer(model, k=k_range, timings=False)
-        visualizer_distortion.fit(cluster_df)
-        visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion.png", clear_figure=True)
-        print(f"saved optimal number of clusters using the elbow-distortion method under: \n "
-              f"{self.figure_path / 'Elbow_distortion.png'}")
-
-        visualizer_silhouette = KElbowVisualizer(model, k=k_range, timings=False, metric="silhouette")
-        visualizer_silhouette.fit(cluster_df)
-        visualizer_silhouette.show(outpath=self.figure_path / "Elbow_silhouette.png", clear_figure=True)
-        print(f"saved optimal number of clusters using the silhouette method under: \n "
-              f"{self.figure_path / 'Elbow_silhouette.png'}")
-
-        visualizer_calinski = KElbowVisualizer(model, k=k_range, timings=False, metric="calinski_harabasz")
-        visualizer_calinski.fit(cluster_df)
-        visualizer_calinski.show(outpath=self.figure_path / "Elbow_calinski.png", clear_figure=True)
-        print(f"saved optimal number of clusters using the elbow-calinski method under: \n "
-              f"{self.figure_path / 'Elbow_calinski.png'}")
-
-        # calculate the number of clusters with the GAP statistic:
-        gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
-        # optimal number of clusters is the cluster with the highest gap
-        highest_gap = np.argmax(gap) + min(k_range)
-        self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
-        print(f"optimal number of cluster using GAP: {highest_gap}")
+        # visualizer_distortion = KElbowVisualizer(model, k=k_range, timings=False)
+        # visualizer_distortion.fit(cluster_df)
+        # visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion.png", clear_figure=True)
+        # print(f"saved optimal number of clusters using the elbow-distortion method under: \n "
+        #       f"{self.figure_path / 'Elbow_distortion.png'}")
+        #
+        # visualizer_silhouette = KElbowVisualizer(model, k=k_range, timings=False, metric="silhouette")
+        # visualizer_silhouette.fit(cluster_df)
+        # visualizer_silhouette.show(outpath=self.figure_path / "Elbow_silhouette.png", clear_figure=True)
+        # print(f"saved optimal number of clusters using the silhouette method under: \n "
+        #       f"{self.figure_path / 'Elbow_silhouette.png'}")
+        #
+        # visualizer_calinski = KElbowVisualizer(model, k=k_range, timings=False, metric="calinski_harabasz")
+        # visualizer_calinski.fit(cluster_df)
+        # visualizer_calinski.show(outpath=self.figure_path / "Elbow_calinski.png", clear_figure=True)
+        # print(f"saved optimal number of clusters using the elbow-calinski method under: \n "
+        #       f"{self.figure_path / 'Elbow_calinski.png'}")
+        #
+        # # calculate the number of clusters with the GAP statistic:
+        # gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
+        # # optimal number of clusters is the cluster with the highest gap
+        # highest_gap = np.argmax(gap) + min(k_range)
+        # self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
+        # print(f"optimal number of cluster using GAP: {highest_gap}")
 
         # calculate the number of clusters with the davies bouldin statistic
-        davies_bouldin = self.davies_bouldin_analysis(X=cluster_df, clusterer=model, k_range=k_range)
+        davies_kmeans, davies_agglo = self.davies_bouldin_analysis(X=cluster_df, clusterer=model, k_range=k_range)
         # optimal number of clusters is the cluster with the lowest boulding index:
-        lowest_bouldin = np.argmin(davies_bouldin) + min(k_range)
-        self.plot_davies_bouldin_index(bouldin_list=davies_bouldin, k_range=k_range, min_davies=lowest_bouldin)
-        print(f"optimal number of cluster using davies bouldin: {lowest_bouldin}")
+        lowest_bouldin_kmeans = np.argmin(davies_kmeans) + min(k_range)
+        self.plot_davies_bouldin_index(bouldin_list=davies_kmeans,
+                                       k_range=k_range,
+                                       min_davies=lowest_bouldin_kmeans,
+                                       algorithm="KMeans")
+        lowest_bouldin_agglo = np.argmin(davies_agglo) + min(k_range)
+        self.plot_davies_bouldin_index(bouldin_list=davies_agglo,
+                                       k_range=k_range,
+                                       min_davies=lowest_bouldin_agglo,
+                                       algorithm="Agglomerative")
+        print(f"optimal number of cluster using davies bouldin and KMeans: {lowest_bouldin_kmeans}")
+        print(f"optimal number of cluster using davies bouldin and Agglomerative clustering: {lowest_bouldin_agglo}")
+
 
     def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
