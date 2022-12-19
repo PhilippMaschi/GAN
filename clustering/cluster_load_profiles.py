@@ -149,13 +149,12 @@ class Cluster:
         plt.savefig(self.figure_path / f"Davies_Bouldin_analysis_{algorithm}.png")
         plt.show()
 
-    def davies_bouldin_analysis(self,  X, clusterer, k_range: np.array) -> (list, list):
+    def davies_bouldin_analysis(self,  X, k_range: np.array) -> (list, list):
         """
         Calculate the davies bouldin statistic for a given clustering algorithm and dataset.
 
         Parameters:
         - X: a 2D array of shape (n_samples, n_features) containing the dataset
-        - clusterer: a clustering algorithm ( KMeans)
         - k_range: a range of values for the number of clusters
 
         Returns:
@@ -230,7 +229,7 @@ class Cluster:
               f"{self.figure_path / 'Calinski_KMeans.png'}")
 
         # calculate the number of clusters with the GAP statistic:
-        gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
+        gap = self.gap_statistic(X=cluster_df, clusterer=KMeans(), k_range=k_range)
         # optimal number of clusters is the cluster with the highest gap
         highest_gap = np.argmax(gap) + min(k_range)
         self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
@@ -238,7 +237,7 @@ class Cluster:
 
 
         # calculate the number of clusters with the davies bouldin statistic
-        davies_kmeans, davies_agglo = self.davies_bouldin_analysis(X=cluster_df, clusterer=model, k_range=k_range)
+        davies_kmeans, davies_agglo = self.davies_bouldin_analysis(X=cluster_df, k_range=k_range)
         # optimal number of clusters is the cluster with the lowest boulding index:
         lowest_bouldin_kmeans = np.argmin(davies_kmeans) + min(k_range)
         self.plot_davies_bouldin_index(bouldin_list=davies_kmeans,
@@ -427,7 +426,7 @@ if __name__ == "__main__":
     normalized_df = normalized_df.drop(columns=["Date"])
 
     # determine optimal clusters:
-    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(4, 15))
+    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(2, 15))
     # number_of_cluster = 8
 
     # hierachical cluster to see how many clusters:
