@@ -1,4 +1,6 @@
 import pandas as pd
+import pyarrow
+import pathlib
 
 from pandas_profiling import ProfileReport
 import sweetviz as sv
