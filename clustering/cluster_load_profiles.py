@@ -186,32 +186,56 @@ class Cluster:
         the optimal number of cluster can change when running it multiple times, which is idk...
         """
         cluster_df = df.transpose()
-        model = KMeans()
 
-        # visualizer_distortion = KElbowVisualizer(model, k=k_range, timings=False)
-        # visualizer_distortion.fit(cluster_df)
-        # visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion.png", clear_figure=True)
-        # print(f"saved optimal number of clusters using the elbow-distortion method under: \n "
-        #       f"{self.figure_path / 'Elbow_distortion.png'}")
-        #
-        # visualizer_silhouette = KElbowVisualizer(model, k=k_range, timings=False, metric="silhouette")
-        # visualizer_silhouette.fit(cluster_df)
-        # visualizer_silhouette.show(outpath=self.figure_path / "Elbow_silhouette.png", clear_figure=True)
-        # print(f"saved optimal number of clusters using the silhouette method under: \n "
-        #       f"{self.figure_path / 'Elbow_silhouette.png'}")
-        #
-        # visualizer_calinski = KElbowVisualizer(model, k=k_range, timings=False, metric="calinski_harabasz")
-        # visualizer_calinski.fit(cluster_df)
-        # visualizer_calinski.show(outpath=self.figure_path / "Elbow_calinski.png", clear_figure=True)
-        # print(f"saved optimal number of clusters using the elbow-calinski method under: \n "
-        #       f"{self.figure_path / 'Elbow_calinski.png'}")
-        #
-        # # calculate the number of clusters with the GAP statistic:
-        # gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
-        # # optimal number of clusters is the cluster with the highest gap
-        # highest_gap = np.argmax(gap) + min(k_range)
-        # self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
-        # print(f"optimal number of cluster using GAP: {highest_gap}")
+        # Elbow distortion method for Agglomerative clustering
+        visualizer_distortion = KElbowVisualizer(AgglomerativeClustering(), k=k_range, timings=False)
+        visualizer_distortion.fit(cluster_df)
+        visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion_Agglo.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-distortion Agglo method under: \n "
+              f"{self.figure_path / 'Elbow_distortion_Agglo.png'}")
+
+        # Elbow distortion method for KMeans clustering
+        visualizer_distortion = KElbowVisualizer(KMeans(), k=k_range, timings=False)
+        visualizer_distortion.fit(cluster_df)
+        visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion_Kmeans.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-distortion Kmeans method under: \n "
+              f"{self.figure_path / 'Elbow_distortion_Kmeans.png'}")
+
+        # Silhouette method for Agglomerative clustering
+        visualizer_silhouette = KElbowVisualizer(AgglomerativeClustering(), k=k_range, timings=False, metric="silhouette")
+        visualizer_silhouette.fit(cluster_df)
+        visualizer_silhouette.show(outpath=self.figure_path / "Silhouette_Agglo.png", clear_figure=True)
+        print(f"saved optimal number of clusters using Agglo and the silhouette method under: \n "
+              f"{self.figure_path / 'Silhouette_Agglo.png'}")
+
+        # Silhouette method for KMeans clustering
+        visualizer_silhouette = KElbowVisualizer(KMeans(), k=k_range, timings=False, metric="silhouette")
+        visualizer_silhouette.fit(cluster_df)
+        visualizer_silhouette.show(outpath=self.figure_path / "Silhouette_KMeans.png", clear_figure=True)
+        print(f"saved optimal number of clusters using KMeans and the silhouette method under: \n "
+              f"{self.figure_path / 'Silhouette_KMeans.png'}")
+
+        # Calinski method for Agglomerative clustering
+        calinski_agglo = KElbowVisualizer(AgglomerativeClustering(), k=k_range, timings=False, metric="calinski_harabasz")
+        calinski_agglo.fit(cluster_df)
+        calinski_agglo.show(outpath=self.figure_path / "Calinski_Agglo.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-calinski Agglo method under: \n "
+              f"{self.figure_path / 'Calinski_Agglo.png'}")
+
+        # Calinski method for KMeans clustering
+        calinski_kmeans = KElbowVisualizer(KMeans(), k=k_range, timings=False, metric="calinski_harabasz")
+        calinski_kmeans.fit(cluster_df)
+        calinski_kmeans.show(outpath=self.figure_path / "Calinski_KMeans.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-calinski KMeans method under: \n "
+              f"{self.figure_path / 'Calinski_KMeans.png'}")
+
+        # calculate the number of clusters with the GAP statistic:
+        gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
+        # optimal number of clusters is the cluster with the highest gap
+        highest_gap = np.argmax(gap) + min(k_range)
+        self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
+        print(f"optimal number of cluster using GAP: {highest_gap}")
+
 
         # calculate the number of clusters with the davies bouldin statistic
         davies_kmeans, davies_agglo = self.davies_bouldin_analysis(X=cluster_df, clusterer=model, k_range=k_range)
@@ -403,7 +427,7 @@ if __name__ == "__main__":
     normalized_df = normalized_df.drop(columns=["Date"])
 
     # determine optimal clusters:
-    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(4, 6))
+    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(4, 15))
     # number_of_cluster = 8
 
     # hierachical cluster to see how many clusters:
