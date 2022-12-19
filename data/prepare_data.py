@@ -43,7 +43,7 @@ def normalize_all_loads(df: pd.DataFrame) -> pd.DataFrame:
     return normalized_df
 
 
-def extract_month_name_from_datetime(df: pd.DataFrame) -> list:
+def extract_month_name_from_datetime(date: pd.Series) -> list:
     """
     @param df: dataframe with a datetime index called "date"
     @return: list of month names based on the datetime index
@@ -62,19 +62,22 @@ def extract_month_name_from_datetime(df: pd.DataFrame) -> list:
         11: "November",
         12: "December"
     }
-    names = [month_dict[i] for i in df.loc[:, "Date"].dt.month]
+    names = [month_dict[i] for i in date.dt.month]
     return names
 
 
-def add_hour_of_the_day_to_df(df: pd.DataFrame) -> pd.DataFrame:
-    """ this function adds the hour of the day based on the timestamp column "date" """
-    df.loc[:, "Hour"] = df.loc[:, "Date"].dt.hour
+def add_hour_of_the_day_to_df(df: pd.DataFrame, date: pd.Series) -> pd.DataFrame:
+    """
+    This function adds the hour of the day based on the timestamp column "Date"
+    and stores it in a new column called "Hour of the Day".
+    """
+    df.loc[:, "Hour"] = date.dt.hour
     return df
 
 
-def add_day_of_the_month_to_df(df: pd.DataFrame) -> pd.DataFrame:
+def add_day_of_the_month_to_df(df: pd.DataFrame, date: pd.Series) -> pd.DataFrame:
     """ this function adds the hour of the day based on the timestamp column "date" """
-    df.loc[:, "Day"] = df.loc[:, "Date"].dt.day
+    df.loc[:, "Day"] = date.dt.day
     return df
 
 
