@@ -15,6 +15,9 @@ from scipy.cluster.hierarchy import cophenet, dendrogram
 from scipy.spatial.distance import pdist
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering, KMeans, DBSCAN
+from sklearn.utils import shuffle
+from sklearn.metrics import davies_bouldin_score
+from yellowbrick.cluster import KElbowVisualizer
 import hdbscan
 
 
@@ -33,7 +36,7 @@ class Cluster:
 
     def hierarchical_cluster(self, df: pd.DataFrame):
         # the clustering clusters after the index so we are transposing the df
-        cluster_df = self.drop_date_related_columns(df).transpose()
+        cluster_df = df.transpose()
         # Calculate the distance between each sample
 
         # possible linkages are: ward, average
@@ -65,7 +68,106 @@ class Cluster:
         plt.show()
         plt.close()
 
-    def elbow_method(self, df: pd.DataFrame) -> int:
+    def gap_statistic(self, X, clusterer, k_range) -> list:
+        """
+        Calculate the gap statistic for a given clustering algorithm and dataset.
+
+        Parameters:
+        - X: a 2D array of shape (n_samples, n_features) containing the dataset
+        - clusterer: a clustering algorithm (e.g. KMeans, AgglomerativeClustering)
+        - k_range: a range of values for the number of clusters
+
+        Returns:
+        - gap: the gap statistic
+        """
+        # calculate the within-cluster sum of squares (WCSS) for each value of k
+        WCSS = []
+        davies_bouldin = []
+        for k in k_range:
+            clusterer.set_params(n_clusters=k)
+            clusterer.fit(X)
+            WCSS.append(clusterer.inertia_)
+
+        # calculate the reference dispersion values
+        reference_dispersion = []
+        for k in k_range:
+            reference_dispersion.append(self._reference_dispersion(X, k))
+
+        # calculate the gap statistic
+        gap = np.log(reference_dispersion) - np.log(WCSS)
+
+        return gap
+
+    def _reference_dispersion(self, X, k):
+        """
+        Calculate the reference dispersion for a given dataset and number of clusters.
+
+        Parameters:
+        - X: a 2D array of shape (n_samples, n_features) containing the dataset
+        - k: the number of clusters
+
+        Returns:
+        - reference_dispersion: the reference dispersion value
+        """
+        n_samples, _ = X.shape
+        dispersion = []
+        for _ in range(10):
+            X_sample = shuffle(X, random_state=None)
+            clusterer = KMeans(n_clusters=k, random_state=None)
+            clusterer.fit(X_sample)
+            dispersion.append(clusterer.inertia_)
+        return np.mean(dispersion)
+
+    def plot_gap_statistics(self, gap_list: list, k_range: np.array, max_gap: int) -> None:
+        plt.plot(k_range, gap_list, label="gap", marker="D")
+        plt.xlabel("k")
+        plt.ylabel("gap value")
+        ax = plt.gca()
+        low, high = ax.get_ylim()
+        plt.vlines(x=max_gap, ymin=low, ymax=high,
+                   label=f"maximum at k={max_gap}, score={round(np.max(gap_list), 4)}",
+                   linestyles="--", colors="black")
+        plt.legend()
+        plt.grid()
+        plt.title("Gap analysis for KMeans Clustering")
+        plt.savefig(self.figure_path / "Gap_analysis.png")
+        plt.show()
+
+    def plot_davies_bouldin_index(self, bouldin_list: list, k_range: np.array, min_davies: int) -> None:
+        plt.plot(k_range, bouldin_list, label="davies bouldin index", marker="D")
+        plt.xlabel("k")
+        plt.ylabel("davies bouldin value")
+        ax = plt.gca()
+        low, high = ax.get_ylim()
+        plt.vlines(x=min_davies, ymin=low, ymax=high,
+                   label=f"minimum at k={min_davies}, score={round(np.min(min_davies), 4)}",
+                   linestyles="--", colors="black")
+        plt.legend()
+        plt.grid()
+        plt.title("Davies Bouldin score for KMeans Clustering")
+        plt.savefig(self.figure_path / "Davies_Bouldin_analysis.png")
+        plt.show()
+
+    def davies_bouldin_analysis(self,  X, clusterer, k_range: np.array) -> list:
+        """
+        Calculate the davies bouldin statistic for a given clustering algorithm and dataset.
+
+        Parameters:
+        - X: a 2D array of shape (n_samples, n_features) containing the dataset
+        - clusterer: a clustering algorithm ( KMeans)
+        - k_range: a range of values for the number of clusters
+
+        Returns:
+        - davies bouldin (list): the gap statistic
+        """
+        davies_bouldin = []
+        for k in k_range:
+            clusterer.set_params(n_clusters=k)
+            model = clusterer.fit_predict(X)
+            davies_bouldin.append(davies_bouldin_score(X, model))
+        return davies_bouldin
+
+    def find_number_of_cluster(self, df: pd.DataFrame, k_range: np.array) -> None:
         """
         creates a elbow method graph done k-means
         @param df: normalized dataframe
@@ -74,61 +176,40 @@ class Cluster:
         CAREFUL, DEPENDING ON HOW KMEANS IS INITIALIZED THE CLUSTERS ARE NOT ALWAYS THE EXACT SAME, thus also
         the optimal number of cluster can change when running it multiple times, which is idk...
         """
-        number_of_cluster = np.arange(1, 30)
-        # the clustering clusters after the index so we are transposing the df
-        cluster_df = self.drop_date_related_columns(df).transpose()
-        inertia = []
-        distortions = []
-        for number in number_of_cluster:
-            kmeans_model = KMeans(n_clusters=number)
-            kmeans_model.fit_predict(cluster_df)
-            inertia.append(kmeans_model.inertia_)
-            distortions.append(sum(np.min(cdist(cluster_df, kmeans_model.cluster_centers_,
-                                                'euclidean'), axis=1)) / cluster_df.shape[0])
-            print(f"fiting kmeans with {number} cluster")
+        cluster_df = df.transpose()
+        model = KMeans()
 
-        def calculate_optimal_number(criterion: list) -> int:
-            # calculate the delta1, delta2 and the strength of each cluster after
-            # https://www.datasciencecentral.com/how-to-automatically-determine-the-number-of-clusters-in-your-dat/
-            delta1 = [criterion[i] - criterion[i + 1] for i in range(len(criterion)) if i < len(criterion) - 1]
-            delta2 = [delta1[i] - delta1[i + 1] for i in range(len(delta1)) if i < len(delta1) - 1]
-            delta1.insert(0, np.nan)
-            delta2.insert(0, np.nan)
-            delta2.insert(0, np.nan)
+        visualizer_distortion = KElbowVisualizer(model, k=k_range, timings=False)
+        visualizer_distortion.fit(cluster_df)
+        visualizer_distortion.show(outpath=self.figure_path / "Elbow_distortion.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-distortion method under: \n "
+              f"{self.figure_path / 'Elbow_distortion.png'}")
 
-            strength = np.array(delta2) - np.array(delta1)
-            # optimal cluster number is where the strength has its maximum
-            # since python starts counting at 0 number of cluster is +1 and the strength is defined as the difference
-            # of the delta2-delta1 at number of cluster +1 we don't need to add anything to the index:
-            strength = strength[~np.isnan(strength)]
-            # remove first two clusters because they are nan, add + 2 to optimal number
-            number_optimal = int(np.argmax(strength)) + 2
-            return number_optimal
+        visualizer_silhouette = KElbowVisualizer(model, k=k_range, timings=False, metric="silhouette")
+        visualizer_silhouette.fit(cluster_df)
+        visualizer_silhouette.show(outpath=self.figure_path / "Elbow_silhouette.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the silhouette method under: \n "
+              f"{self.figure_path / 'Elbow_silhouette.png'}")
 
-        optimal_number = calculate_optimal_number(distortions)
-        optimal_number_2 = calculate_optimal_number(inertia)
+        visualizer_calinski = KElbowVisualizer(model, k=k_range, timings=False, metric="calinski_harabasz")
+        visualizer_calinski.fit(cluster_df)
+        visualizer_calinski.show(outpath=self.figure_path / "Elbow_calinski.png", clear_figure=True)
+        print(f"saved optimal number of clusters using the elbow-calinski method under: \n "
+              f"{self.figure_path / 'Elbow_calinski.png'}")
 
-        print(f"optimal number of clusters was found to be: {optimal_number}")
-        # plot the distortions so we can visualy check if the numbers are correct
-        fig = plt.figure()
-        ax = fig.gca()
-        plt.plot(number_of_cluster, inertia)
-        ymin, ymax = ax.get_ylim()
-        plt.vlines(x=optimal_number, ymin=ymin, ymax=ymax, colors="red", label="distortion")
-        plt.vlines(x=optimal_number_2, ymin=ymin, ymax=ymax, colors="green", label="inertia", linestyles="--")
-        plt.ylabel("inertia")
-        plt.legend()
-        plt.title("Elbow method")
-        plt.savefig(self.figure_path / "Elbow_method.png")
-        plt.show()
+        # calculate the number of clusters with the GAP statistic:
+        gap = self.gap_statistic(X=cluster_df, clusterer=model, k_range=k_range)
+        # optimal number of clusters is the cluster with the highest gap
+        highest_gap = np.argmax(gap) + min(k_range)
+        self.plot_gap_statistics(gap_list=gap, k_range=k_range, max_gap=highest_gap)
+        print(f"optimal number of cluster using GAP: {highest_gap}")
 
-        # check if the two methods come to the same result
-        if optimal_number != optimal_number_2:
-            print(f"optimal number is dependent on methode (inertia, distortion) \n "
-                  f"using the higher number which is {max([optimal_number, optimal_number_2])}")
-            optimal_number = max([optimal_number, optimal_number_2])
-
-        return optimal_number
+        # calculate the number of clusters with the davies bouldin statistic
+        davies_bouldin = self.davies_bouldin_analysis(X=cluster_df, clusterer=model, k_range=k_range)
+        # optimal number of clusters is the cluster with the lowest boulding index:
+        lowest_bouldin = np.argmin(davies_bouldin) + min(k_range)
+        self.plot_davies_bouldin_index(bouldin_list=davies_bouldin, k_range=k_range, min_davies=lowest_bouldin)
+        print(f"optimal number of cluster using davies bouldin: {lowest_bouldin}")
 
     def heat_map(self, df: pd.DataFrame) -> plt.figure:
         """ creates a heat map with the hours of the day on the y-axis and the months on the x-axis
@@ -139,9 +220,9 @@ class Cluster:
          @return: returns a matplotlib figure with the heat map
         """
         # add hour, day and month
-        df = dataprep.add_hour_of_the_day_to_df(df)
-        df = dataprep.add_day_of_the_month_to_df(df)
-        df.loc[:, "Month"] = dataprep.extract_month_name_from_datetime(profiles)
+        df = dataprep.add_hour_of_the_day_to_df(df, DATE)
+        df = dataprep.add_day_of_the_month_to_df(df, DATE)
+        df.loc[:, "Month"] = dataprep.extract_month_name_from_datetime(DATE)
         # prepare the dataframe so it can be plottet as heat map
         melted_df = df.melt(id_vars=["Date", "Hour", "Day", "Month"])
         pivot_df = pd.pivot_table(data=melted_df, index="Hour", columns=["Month", "Day"], values="value")
@@ -163,8 +244,7 @@ class Cluster:
 
     def agglomerative_cluster(self, df: pd.DataFrame, number_of_cluster: int):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "Date"]  # save it to merge it back for heat map
-        cluster_df = self.drop_date_related_columns(df).transpose()
+        cluster_df = df.transpose()
         # define model
         agglo_model = AgglomerativeClustering(n_clusters=number_of_cluster, affinity='euclidean', linkage='ward')
         # fit model
@@ -175,7 +255,7 @@ class Cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
             column_names.insert(0, "Date")
-            heat_map_df = pd.concat([date, cluster_df.loc[y_agglo == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = pd.concat([DATE, cluster_df.loc[y_agglo == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
             })
@@ -192,8 +272,7 @@ class Cluster:
 
     def kmeans_cluster(self, df: pd.DataFrame, number_of_cluster: int):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "Date"]  # save it to merge it back for heat map
-        cluster_df = self.drop_date_related_columns(df).transpose()
+        cluster_df = df.transpose()
         # define the model
         kmeans_model = KMeans(n_clusters=number_of_cluster)
         # fit the model
@@ -203,7 +282,7 @@ class Cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
             column_names.insert(0, "Date")
-            heat_map_df = pd.concat([date, cluster_df.loc[y_kmeans == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = pd.concat([DATE, cluster_df.loc[y_kmeans == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
             })
@@ -220,7 +299,6 @@ class Cluster:
 
     def db_scan_cluster(self, df: pd.DataFrame):  # doesnt need the number of cluster!
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "Date"]  # save it to merge it back for heat map
         cluster_df = self.drop_date_related_columns(df).transpose()
         # TODO find the right method to cluster loads with db scan
         db_model = DBSCAN(eps=10, min_samples=3, metric="euclidean", metric_params=None, algorithm="auto",
@@ -232,7 +310,7 @@ class Cluster:
         for i in range(y_db):
             column_names = list(cluster_df.transpose().columns)
             column_names.insert(0, "Date")
-            heat_map_df = pd.concat([date, cluster_df.loc[y_db == i, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = pd.concat([DATE, cluster_df.loc[y_db == i, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
             })
@@ -248,15 +326,25 @@ class Cluster:
 
     def cluster_hdb_scan(self, df: pd.DataFrame):
         # the clustering clusters after the index so we are transposing the df
-        date = df.loc[:, "Date"]  # save it to merge it back for heat map
-        cluster_df = self.drop_date_related_columns(df).transpose()
-        model_hdb_scan = hdbscan.HDBSCAN(algorithm='best',
-                                         approx_min_span_tree=True,
-                                         gen_min_span_tree=False,
-                                         metric='euclidean',
-                                         min_cluster_size=2,
-                                         min_samples=1,
-                                         p=None)
+        cluster_df = df.transpose()
+        model_hdb_scan = hdbscan.HDBSCAN(min_cluster_size=2,  # The minimum number of samples in a group for that group to be considered a cluster
+                                         min_samples=None,  # defaults to min_cluster_size
+                                         cluster_selection_epsilon=10.0,  # A distance threshold. Clusters below this value will be merged.
+                                         max_cluster_size=0,  # A limit to the size of clusters returned by the eom algorithm, does not work with "leaf"
+                                         metric="euclidean",
+                                         alpha=1.0,  # A distance scaling parameter as used in robust single linkage.
+                                         p=None,
+                                         algorithm="best",
+                                         leaf_size=40,
+                                         approx_min_span_tree=True,  # an provide a significant speedup, but the resulting clustering may be of marginally lower quality.
+                                         gen_min_span_tree=False,  # for later analysis (useless now)
+                                         core_dist_n_jobs=12,
+                                         cluster_selection_method="eom",  # options are eom and leaf
+                                         allow_single_cluster=True,
+                                         prediction_data=False,  # Whether to generate extra cached data for predicting labels or membership vectors few new unseen points later.
+                                         match_reference_implementation=False,  # useless
+                                         )
+
         model_hdb_scan.fit(cluster_df)
 
         labels = model_hdb_scan.labels_
@@ -264,13 +352,12 @@ class Cluster:
         number_of_cluster = model_hdb_scan.labels_.max()
         total_number_of_profiles = len(labels)
 
-
         # plot the heat map for each cluster:
         for i in range(number_of_cluster):
             column_names = list(cluster_df.transpose().columns)
             column_names.insert(0, "Date")
 
-            heat_map_df = pd.concat([date, cluster_df.loc[labels == i+1, :].transpose()], axis=1, ignore_index=True)
+            heat_map_df = pd.concat([DATE, cluster_df.loc[labels == i + 1, :].transpose()], axis=1, ignore_index=True)
             heat_map_df = heat_map_df.rename(columns={
                 old_name: column_names[i] for i, old_name in enumerate(heat_map_df.columns)
             })
@@ -279,10 +366,13 @@ class Cluster:
             percentage_number_of_profiles = round(len(cluster_df[labels == i]) / total_number_of_profiles * 100, 2)
             ax.set_title(f"HDBSCAN cluster: {i + 1}; {percentage_number_of_profiles}% of all profiles")
             plt.tight_layout()
-            figure_path = self.figure_path / f"HDBSCAN" / f"HDBSCAN_cluster_Nr_{i + 1}.png"
+            figure_path = self.figure_path / f"HDBSCAN{number_of_cluster}" / f"HDBSCAN_cluster_Nr_{i + 1}.png"
             self.check_figure_path(figure_path.parent)
             plt.savefig(figure_path, bbox_inches='tight')
             plt.close()
+
+        print(f"created {number_of_cluster} HDBSCAN cluster")
+
 
 if __name__ == "__main__":
     profiles = DataImporter().main(create_json=False)
@@ -290,25 +380,25 @@ if __name__ == "__main__":
     normalized_df = dataprep.normalize_all_loads(profiles)
     # convert to float32:
     normalized_df = dataprep.define_float_type(normalized_df)
-
-    Cluster().heat_map(normalized_df)
+    DATE = normalized_df["Date"]
+    normalized_df = normalized_df.drop(columns=["Date"])
 
     # determine optimal clusters:
-    number_of_cluster = Cluster().elbow_method(normalized_df)
-    # number_of_cluster = 12
+    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(4, 6))
+    # number_of_cluster = 8
 
     # hierachical cluster to see how many clusters:
-    Cluster().hierarchical_cluster(normalized_df)  # creates a figure
+    # Cluster().hierarchical_cluster(normalized_df)  # creates a figure
+    # #
+    # # # cluster with agglomerative:
+    # Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    # # # kmeans cluster
+    # Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    # cluster with HDBSCAN
+    # Cluster().cluster_hdb_scan(normalized_df)
 
-    # cluster with agglomerative:
-    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
-    # kmeans cluster
-    Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
-
-    Cluster().cluster_hdb_scan(normalized_df)
-    # cluster with DBSCAN
-    Cluster().db_scan_cluster(normalized_df)
-
+    # # cluster with DBSCAN
+    # Cluster().db_scan_cluster(normalized_df)
 
     # TODO try dtw!! (should be better for timeseries) -> Update: dtw is way too slow and resource intensive
 
