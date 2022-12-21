@@ -426,16 +426,16 @@ if __name__ == "__main__":
     normalized_df = normalized_df.drop(columns=["Date"])
 
     # determine optimal clusters:
-    number_of_cluster = Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(2, 15))
-    # number_of_cluster = 8
+    Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(2, 15))
+    number_of_cluster = 8
 
     # hierachical cluster to see how many clusters:
-    # Cluster().hierarchical_cluster(normalized_df)  # creates a figure
+    Cluster().hierarchical_cluster(normalized_df)  # creates a figure
     # #
     # # # cluster with agglomerative:
-    # Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
     # # # kmeans cluster
-    # Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
     # cluster with HDBSCAN
     # Cluster().cluster_hdb_scan(normalized_df)
 
