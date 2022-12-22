@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import pyarrow
 import pathlib
 
@@ -10,10 +11,29 @@ import matplotlib.pyplot as plt
 
 class Profiles:
 
-    def __init__(self, filename, load_profile_carrier):
+    def __init__(self, filename, outputdir=os.path.dirname(__file__), load_profile_carrier=None):
+
+
+        if os.path.exist(outputdir) == False:
+            print("%s doesnt exists"% outputdir)
+        if os.path.exist(filename) == False:
+            print("%s doesnt exists"% filename)
+
+        assert(os.path.exist(outputdir) and os.path.exist(filename) )
+
+
+
         self.df = pd.read_parquet(filename)
-        self.report_path = r"C:/Users/FrancescaConselvan/Documents/MODERATE/results/EDA reports"
-        self.figure_path = r"C:/Users/FrancescaConselvan/Documents/MODERATE/results/figures"
+
+        self.report_path = f"{outputdir}/results/EDA reports"
+        self.figure_path = f"{outputdir}/results/figures"
+
+        if os.path.exist(self.report_path) == False:
+            os.makedirs(self.report_path)
+            # makedirs > creates subdirectories in the dir
+        if os.path.exist(self.figure_path) == False:
+            os.makedirs(self.figure_path)
+
         self.title = load_profile_carrier
         print(self.df.describe())
 
@@ -42,5 +62,13 @@ class Profiles:
 
 
 if __name__ == "__main__":
-    Profiles()
+    data = Profiles(filename=r"C:/Users/FrancescaConselvan/Dropbox/MODERATE/Enercoop//ENERCOOP_load_profiles.parquet.gzip",
+                    outputdir=r"C:/Users/FrancescaConselvan/Documents/MODERATE/GAN",
+                    load_profile_carrier="Enercoop")
+
+    data.pandas_profiling()
+    data.sweet_viz_report()
+    data.outliers_boxplot()
+    data.missing_values()
+
 

@@ -1,6 +1,7 @@
 import pandas as pd
-from import_data import data
+
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 class Univariate_analysis:
 
@@ -8,9 +9,14 @@ class Univariate_analysis:
         self.df = pd.read_parquet(filename)
         self.figure_path = r"C:/Users/FrancescaConselvan/Documents/MODERATE/results/figures"
 
+    def univariate_distribution (self):
 
 
-g = sns.Facet
+
+
+
+
+
 
 # specific columns
 def count_elements(seq) -> dict:
