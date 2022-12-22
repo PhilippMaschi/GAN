@@ -1,23 +1,2 @@
-_pycache_/
-__pycache__/
-data/
-test.ipynb
-output/
-
-/.idea/GAN.iml
-/.idea/misc.xml
-/.idea/modules.xml
-/.idea/inspectionProfiles/profiles_settings.xml
-/.idea/inspectionProfiles/Project_Default.xml
-/.idea/vcs.xml
-/.idea
-
-*.csv
-*.xlsx
-*.json
-*.xml
-*.iml
-*.jpg
-*.html
-*.png
-*.svg
+# created by virtualenv automatically
+*
