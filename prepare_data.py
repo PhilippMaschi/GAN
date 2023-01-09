@@ -33,7 +33,6 @@ class clean_dataframe:
         df[cat_columns] = df[cat_columns].apply(lambda x: pd.factorize(x)[0])
         return df
 
-
 if __name__ == "__main__":
     path = path_file + "/csv"
     df = import_csv(path_csv=path_to_csv)
@@ -44,5 +43,5 @@ if __name__ == "__main__":
 
 
 
-# function to convert categorical variables in numerical. Necessary ???
+
 
