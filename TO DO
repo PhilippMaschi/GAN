@@ -1,0 +1,6 @@
+11.01
+
+parameters from UBEM:
+- generator adn discriminator learning rate: 4e-6
+- batches: 2048
+- training epochs: 50
