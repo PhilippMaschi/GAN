@@ -57,7 +57,10 @@ class Cluster:
         new_x_labels = []
         for label in x_tick_labels:
             # exclude the A+(Wh)...
-            new_x_labels.append(ts[int(label)].replace("_A+(Wh)", "").replace("_A-(Wh)", ""))
+            try:
+                new_x_labels.append(ts[int(label)].replace("_A+(Wh)", "").replace("_A-(Wh)", ""))
+            except:
+                pass
         # set new x_ticks
         xticks = ax.get_xticks()
         plt.xticks(xticks, new_x_labels, rotation=-90)
@@ -425,17 +428,19 @@ if __name__ == "__main__":
     DATE = normalized_df["Date"]
     normalized_df = normalized_df.drop(columns=["Date"])
 
+    df = pd.read_excel(r"C:\Users\mascherbauer\PycharmProjects\GAN\data\Mean_scaled_consumed_energy.xlsx", index_col=0, engine="openpyxl")
+    df_cluster = df.T.reset_index(drop=True)
     # determine optimal clusters:
-    Cluster().find_number_of_cluster(normalized_df, k_range=np.arange(2, 15))
-    number_of_cluster = 8
+    Cluster().find_number_of_cluster(df.T, k_range=np.arange(2, 15))
+    number_of_cluster = 11
 
     # hierachical cluster to see how many clusters:
-    Cluster().hierarchical_cluster(normalized_df)  # creates a figure
+    Cluster().hierarchical_cluster(df_cluster)  # creates a figure
     # #
     # # # cluster with agglomerative:
-    Cluster().agglomerative_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    Cluster().agglomerative_cluster(df_cluster, number_of_cluster=number_of_cluster)
     # # # kmeans cluster
-    Cluster().kmeans_cluster(normalized_df, number_of_cluster=number_of_cluster)
+    Cluster().kmeans_cluster(df_cluster, number_of_cluster=number_of_cluster)
     # cluster with HDBSCAN
     # Cluster().cluster_hdb_scan(normalized_df)
 
