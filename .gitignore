@@ -1,0 +1,10 @@
+_pycache_/
+*.csv
+*.xlsx
+*.json
+*.parquet
+*.gzip
+*.jpg
+*.png
+*.html
+*.DGAN
