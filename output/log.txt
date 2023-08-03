@@ -1,0 +1,27 @@
+PyTorch version: 1.13.0
+CUDA version: 11.7
+
+         Args         |    Type    |    Value
+--------------------------------------------------
+  model               |  str       |  cgan
+  cuda                |  bool      |  True
+  train               |  bool      |  True
+  data_dir            |  str       |  ~/Data/mnist
+  out_dir             |  str       |  output
+  epochs              |  int       |  10
+  batch_size          |  int       |  128
+  lr                  |  float     |  0.0002
+  latent_dim          |  int       |  100
+  classes             |  int       |  10
+  img_size            |  int       |  64
+  channels            |  int       |  1
+  log_interval        |  int       |  100
+  seed                |  int       |  1
+Loading data...
+
+Creating model...
+
+Epoch 0 [100/469] loss_D: 0.3309 loss_G: 1.1832 time: 9.05
+Epoch 0 [200/469] loss_D: 0.8122 loss_G: 0.2856 time: 2.75
+Epoch 0 [300/469] loss_D: 0.5738 loss_G: 0.7711 time: 2.65
+Epoch 0 [400/469] loss_D: 0.5162 loss_G: 1.0776 time: 2.72
