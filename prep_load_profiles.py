@@ -2,9 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from tqdm import tqdm
-from multiprocessing import Pool, Manager
 from joblib import Parallel, delayed
-import multiprocessing
 
 def handle_single_entry_array(val):
     if isinstance(val, (list, np.ndarray)) and len(val) == 1:
@@ -55,6 +53,7 @@ def handle_dst(df: pd.DataFrame) -> pd.DataFrame:
     df['timestamp'] = pd.to_datetime(df['date']) + pd.to_timedelta(df['hour'], unit='h')
     return df
 
+
 def read_df(file_path: Path) -> pd.DataFrame:
     number = file_path.name.replace(".csv", "")
     dataframe = pd.read_csv(file_path, sep=";")
@@ -70,23 +69,23 @@ def read_df(file_path: Path) -> pd.DataFrame:
 
 
 file_path = Path(r"C:\Users\mascherbauer\OneDrive\EEG_Projekte\MODERATE\data\Load Profiles 5000")
-dataframes = []
+# dataframes = []
 diff_timestamp = []
 
 csv_files = file_path.glob('*.csv')
 # Use all available cores
+dataframes = Parallel(n_jobs=-1)(delayed(read_df)(file) for file in tqdm(csv_files))
 
-# number_of_physical_cores = int(multiprocessing.cpu_count() / 2)
-# dataframes = Parallel(n_jobs=-1)(delayed(read_df)(file) for file in tqdm(csv_files))
-
-for i, csv_file in enumerate(tqdm(csv_files)):
-    df = read_df(csv_file)
-    dataframes.append(df)
+# for i, csv_file in enumerate(tqdm(csv_files)):
+#     df = read_df(csv_file)
+#     dataframes.append(df)
 
 big_frame = pd.concat(dataframes, axis=1, join="outer").sort_values(by="timestamp")
 # replace , with . to be able to change to numeric
-big_frame = big_frame.applymap(lambda x: float(str(x).replace(',', '.')) if isinstance(x, str) else x).applymap(pd.to_numeric)
+big_frame = big_frame.applymap(
+    lambda x: float(str(x).replace(',', '.')) if isinstance(x, str) else x
+).applymap(pd.to_numeric)
 
 # save dataframe
-big_frame.to_csv(file_path / "all_profiles.csv")
-big_frame.to_parquet(file_path / "all_profiles.gzip.parquet")
+big_frame.to_csv(file_path.parent / "all_profiles.csv")
+big_frame.to_parquet(file_path.parent / "all_profiles.gzip.parquet")
