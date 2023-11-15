@@ -3,6 +3,7 @@ from torch import nn, cat, optim, full, randn, no_grad
 import pandas as pd
 from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Generator(nn.Module):
@@ -160,3 +161,13 @@ class GAN(object):
                             plt.title(f'labels: {self.labelsFixed.numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
                             plt.show();
                 self.iterCount += 1
+
+    def generate_sample(self):
+        synthSamples_list = []
+        for item in self.dataLoader.dataset.tensors[1]:
+            noise = randn(1, self.dimLatent, device = self.device)
+            label_ = full(size = (1,), fill_value = item, device = self.device, dtype = torch.int32)
+            sampleGen = self.Gen(noise, label_).detach().cpu().numpy()
+            synthSamples_list.append(sampleGen)
+        synthSamples = np.vstack(synthSamples_list)
+        return synthSamples
