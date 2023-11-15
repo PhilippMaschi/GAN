@@ -61,7 +61,8 @@ class Discriminator(nn.Module):
 
 
 class GAN(object):
-    def __init__(self, device, dataLoader, dimLatent, featureCount, classCount, dimEmbedding, lr, maxNorm, epochCount, testLabel = None, exampleCount = 3):
+    def __init__(self, name, device, dataLoader, dimLatent, featureCount, classCount, dimEmbedding, lr, maxNorm, epochCount, testLabel = None, exampleCount = 3):
+        self.name = name
         self.device = device
         self.dataLoader = dataLoader
         self.dimLatent = dimLatent
