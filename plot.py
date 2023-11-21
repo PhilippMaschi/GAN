@@ -3,12 +3,12 @@ from tqdm.notebook import tqdm
 import matplotlib.pyplot as plt
 
 
-def plot_synthetic_vs_real_samples(modelName, df_profile, samplesScaled, synthSamples):
-    outputPath = f'plots/{modelName}/synth_vs_real'
+def plot_synthetic_vs_real_samples(model, df_profile, samplesScaled, synthSamples):
+    outputPath = f'plots/{model.name}/synth_vs_real'
     if not os.path.exists(outputPath):
         os.makedirs(outputPath)
     for label in tqdm(range(len(df_profile))):
-        plt.figure(facecolor = 'w')
+        plt.figure(facecolor = 'w', figsize = (10, 4))
         plt.plot(synthSamples[label], color = 'green', alpha = 0.35)
         plt.plot([], color = 'green', label = 'Synthetic')
         plt.plot(samplesScaled[label].T, color = 'red', label = 'Real', alpha = 0.75)
@@ -18,8 +18,8 @@ def plot_synthetic_vs_real_samples(modelName, df_profile, samplesScaled, synthSa
         plt.close();
 
 
-def plot_losses(model, modelName):
-    outputPath = f'plots/{modelName}/losses'
+def plot_losses(model):
+    outputPath = f'plots/{model.name}/losses'
     if not os.path.exists(outputPath):
         os.makedirs(outputPath)
     for item in tqdm(model.df_loss.columns[-6:]):

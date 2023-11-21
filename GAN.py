@@ -1,15 +1,16 @@
 import torch
 from torch import nn, cat, optim, full, randn, no_grad
 import pandas as pd
-from tqdm.notebook import tqdm
+from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 class Generator(nn.Module):
-    def __init__(self, dimLatent, classCount, dimEmbedding):
+    def __init__(self, dimLatent, featureCount, classCount, dimEmbedding):
         super(Generator, self).__init__()
         self.dimLatent = dimLatent
+        self.featureCount = featureCount
         self.classCount = classCount
         self.dimEmbedding = dimEmbedding    #dimension of the embedding tensor
         self.labelEmbedding = nn.Embedding(num_embeddings = self.classCount, embedding_dim = dimEmbedding)
@@ -25,11 +26,12 @@ class Generator(nn.Module):
             nn.LeakyReLU(),
             nn.Dropout(0.2),
             # 3rd layer
-            nn.Linear(in_features = 128, out_features = 24),
+            nn.Linear(in_features = 128, out_features = featureCount),
             nn.Tanh()
         )
     
     def forward(self, noise, labels):
+        #print(labels, self.labelEmbedding(labels))
         x = self.model(cat((self.labelEmbedding(labels), noise), -1))   #apply model to concatenated tensor (fixed label tensor + noise tensor)
         return x
 
@@ -76,7 +78,7 @@ class GAN(object):
         self.exampleCount = exampleCount
 
         # Initialize generator
-        self.Gen = Generator(dimLatent, classCount, dimEmbedding)
+        self.Gen = Generator(dimLatent, featureCount, classCount, dimEmbedding)
         self.Gen.to(self.device)
 
         # Initialize discriminator
@@ -158,8 +160,8 @@ class GAN(object):
                             xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
                             yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
                             plt.figure(figsize = (4, 3), facecolor = 'w')
-                            plt.plot(xFakeTest.detach().cpu().T)
-                            plt.title(f'labels: {self.labelsFixed.numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
+                            plt.plot(xFakeTest.detach().cpu().numpy().T)
+                            plt.title(f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
                             plt.show();
                 self.iterCount += 1
 
