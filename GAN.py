@@ -1,7 +1,7 @@
 import torch
 from torch import nn, cat, optim, full, randn, no_grad
 import pandas as pd
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
