@@ -16,3 +16,4 @@ plots/*
 *.pt
 *.ipynb
 !main.ipynb
+*.ipynb_checkpoints/
