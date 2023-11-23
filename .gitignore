@@ -17,3 +17,6 @@ plots/*
 *.ipynb
 !main.ipynb
 *.ipynb_checkpoints/
+.idea/
+clustering/
+model/
