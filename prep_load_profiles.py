@@ -27,9 +27,9 @@ def handle_dst(df: pd.DataFrame) -> pd.DataFrame:
         time_3am = pd.Timestamp(day) + pd.to_timedelta('03:00:00')
         time_4am = pd.Timestamp(day) + pd.to_timedelta('04:00:00')
         mean = df.loc[
-            df['timestamp'].isin([time_3am, time_4am]), ['A+(Wh)', 'A-(Wh)']
+            df['timestamp'].isin([time_3am, time_4am]), ['A+(Wh)']#, 'A-(Wh)']
         ].applymap(handle_single_entry_array).applymap(pd.to_numeric).mean()
-        df.loc[df['timestamp'].isin([time_3am]), ['A+(Wh)', 'A-(Wh)']] = mean
+        df.loc[df['timestamp'].isin([time_3am]), 'A+(Wh)'] = mean
         # Drop the 4 o'clock hour
         df = df[df['timestamp'] != time_4am]
 
@@ -39,7 +39,7 @@ def handle_dst(df: pd.DataFrame) -> pd.DataFrame:
         additional_row = pd.DataFrame.from_dict({
             'timestamp': pd.Timestamp(day) + pd.to_timedelta('03:00:00'),
             'A+(Wh)': np.nan,
-            'A-(Wh)': np.nan
+            # 'A-(Wh)': np.nan
         }, orient="index").T
         # add new row
         df = pd.concat([df, additional_row], ignore_index=True)
@@ -61,10 +61,10 @@ def read_df(file_path: Path) -> pd.DataFrame:
     corrected_df = handle_dst(dataframe)
     corrected_df = corrected_df.rename(columns={
             "A+(Wh)": f"A+(Wh)_{number}",
-            "A-(Wh)": f"A-(Wh)_{number}"
+            # "A-(Wh)": f"A-(Wh)_{number}"
         })
     corrected_df.set_index("timestamp", inplace=True)
-    df_return = corrected_df[[f"A+(Wh)_{number}", f"A-(Wh)_{number}"]]
+    df_return = corrected_df[f"A+(Wh)_{number}"]#, f"A-(Wh)_{number}"]]
     return df_return
 
 
@@ -76,9 +76,6 @@ csv_files = file_path.glob('*.csv')
 # Use all available cores
 dataframes = Parallel(n_jobs=-1)(delayed(read_df)(file) for file in tqdm(csv_files))
 
-# for i, csv_file in enumerate(tqdm(csv_files)):
-#     df = read_df(csv_file)
-#     dataframes.append(df)
 
 big_frame = pd.concat(dataframes, axis=1, join="outer").sort_values(by="timestamp")
 # replace , with . to be able to change to numeric
