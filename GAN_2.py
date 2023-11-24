@@ -24,17 +24,8 @@ class Generator(nn.Module):
             nn.Linear(in_features = 64, out_features = 128),
             #nn.ReLU(),
             nn.LeakyReLU(),
+            nn.Dropout(0.2),
             # 3rd layer
-            nn.Linear(in_features = 128, out_features = 128),
-            #nn.ReLU(),
-            nn.LeakyReLU(),
-            # 4th layer
-            nn.Linear(in_features = 128, out_features = 128),
-            #nn.ReLU(),
-            nn.LeakyReLU(),
-            # 5th layer
-            nn.Dropout(0.1),
-            # 6th layer
             nn.Linear(in_features = 128, out_features = featureCount),
             nn.Tanh()
         )
@@ -56,20 +47,12 @@ class Discriminator(nn.Module):
             # 1st layer
             nn.Linear(in_features = self.featureCount + self.dimEmbedding, out_features = 128),
             nn.LeakyReLU(),
+            nn.Dropout(0.2),
             # 2nd layer
-            nn.Dropout(0.1),
-            # 3rd layer
-            nn.Linear(in_features = 128, out_features = 128),
-            nn.LeakyReLU(),
-            # 4th layer
-            nn.Linear(in_features = 128, out_features = 128),
-            nn.LeakyReLU(),
-            # 5th layer
             nn.Linear(in_features = 128, out_features = 64),
             nn.LeakyReLU(),
-            # 6th layer
-            nn.Dropout(0.1),
-            # 7th layer
+            nn.Dropout(0.2),
+            # 3rd layer
             nn.Linear(in_features = 64, out_features = 1),
             nn.Sigmoid()
         )
