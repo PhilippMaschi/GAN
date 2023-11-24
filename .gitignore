@@ -16,6 +16,7 @@ plots/*
 *.pt
 *.ipynb
 !main.ipynb
+!main_2.ipynb
 *.ipynb_checkpoints/
 .idea/
 clustering/
