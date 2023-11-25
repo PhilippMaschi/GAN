@@ -1,4 +1,3 @@
-import torch
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +5,6 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import cryptpandas as crp
 from pathlib import Path
-from sklearn.preprocessing import MinMaxScaler
 
 
 def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
@@ -18,8 +16,9 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
     # Combining the data
-    real = real_data.iloc[:, 13:]
-    synthetic = synthetic_data.iloc[:, 13:]
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    real = real_data[numeric_cols]
+    synthetic = synthetic_data[numeric_cols]
     combined_data = pd.concat([real, synthetic], axis=0)
     labels = np.array(['Real'] * len(real) + ['Synthetic'] * len(synthetic))
 
@@ -59,8 +58,9 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     real_data (DataFrame): DataFrame containing the real load profiles.
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
-    real = real_data.iloc[:, 13:]
-    synthetic = synthetic_data.iloc[:, 13:]
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    real = real_data[numeric_cols]
+    synthetic = synthetic_data[numeric_cols]
     # Calculating peak and mean values
     real_peaks = real.max()
     synthetic_peaks = synthetic.max()
@@ -96,52 +96,81 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     plt.show()
 
 
-def plot_seasonal_daily_means(df_real: pd.DataFrame, df_synthetic: pd.DataFrame, output_path: Path):
-    # add seasons to df:
-    season_groups = df.groupby("meteorological season")
+def is_number(s):
+    """
+    Check if the input string s is a number.
 
+    Parameters:
+    s (str): The string to check.
+
+    Returns:
+    bool: True if s is a number, False otherwise.
+    """
+    try:
+        float(s)  # for int, long and float
+    except ValueError:
+        return False
+    return True
+
+
+def plot_seasonal_daily_means(df_real: pd.DataFrame,
+                              df_synthetic: pd.DataFrame,
+                              output_path: Path):
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    # add seasons to df:
+    season_groups_real = df_real.groupby("meteorological season")
+    season_groups_synthetic = df_synthetic.groupby("meteorological season")
     # Separate plots for each season
-    season_colors = {
-        'Winter': 'lightblue',
-        'Spring': 'lightgreen',
-        'Summer': 'lightcoral',
-        'Fall': 'wheat'
-    }
-    seasons = df["meteorological season"].unique()
+    seasons = df_real["meteorological season"].unique()
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
     axes = axes.flatten()
     for i, season in enumerate(seasons):
         ax = axes[i]
-        season_df = season_groups.get_group(season)
-        columns_to_drop = [name for name in season_df.columns if type(name) != int and name != "hour of the day"]
-        season_df = season_df.drop(columns=columns_to_drop)
+        season_real = season_groups_real.get_group(season)[["hour of the day"] + numeric_cols]
+        season_synthetic = season_groups_synthetic.get_group(season)[["hour of the day"] + numeric_cols]
         # Filter the dataframe for the season and aggregate data by hour
-        seasonal_hourly_means = season_df.groupby("hour of the day").mean()
-        seasonal_hourly_std = season_df.groupby("hour of the day").std()
+        seasonal_hourly_means_real = season_real.groupby("hour of the day").mean()
+        seasonal_hourly_std_real = season_real.groupby("hour of the day").std()
+
+        seasonal_hourly_means_synthetic = season_synthetic.groupby("hour of the day").mean()
+        seasonal_hourly_std_synthetic = season_synthetic.groupby("hour of the day").std()
 
         # Plot seasonal mean and standard deviation
         ax.plot(np.arange(24),
-                seasonal_hourly_means.mean(axis=1),
-                color='black',
+                seasonal_hourly_means_real.mean(axis=1),
+                color="blue",
                 linewidth=2,
-                label=f'{season.capitalize()} Mean',
+                label=f'{season.capitalize()} Mean Real',
                 )
         ax.fill_between(np.arange(24),
-                        seasonal_hourly_means.mean(axis=1) - seasonal_hourly_std.mean(axis=1),
-                        seasonal_hourly_means.mean(axis=1) + seasonal_hourly_std.mean(axis=1),
+                        seasonal_hourly_means_real.mean(axis=1) - seasonal_hourly_std_real.mean(axis=1),
+                        seasonal_hourly_means_real.mean(axis=1) + seasonal_hourly_std_real.mean(axis=1),
                         alpha=0.3,
-                        label=f'{season.capitalize()} Std Dev',
-                        color=season_colors[season])
+                        label=f'{season.capitalize()} Std Dev Real',
+                        color="cyan")
+
+        ax.plot(np.arange(24),
+                seasonal_hourly_means_synthetic.mean(axis=1),
+                color="red",
+                linewidth=2,
+                label=f'{season.capitalize()} Mean Synthetic',
+                )
+        ax.fill_between(np.arange(24),
+                        seasonal_hourly_means_synthetic.mean(axis=1) - seasonal_hourly_std_synthetic.mean(axis=1),
+                        seasonal_hourly_means_synthetic.mean(axis=1) + seasonal_hourly_std_synthetic.mean(axis=1),
+                        alpha=0.3,
+                        label=f'{season.capitalize()} Std Dev Synthetic',
+                        color="lightcoral")
 
         # Formatting the seasonal plot
         ax.set_xlabel('Hour of Day')
         ax.set_ylabel('Mean Profile Value')
-        ax.set_title(f'Mean Hourly Profile for {season.capitalize()} and Custer {cluster_label}')
+        ax.set_title(f'Mean Hourly Profile for {season.capitalize()} and Custer')
         ax.legend()
         # plt.xticks(range(0, 24))
         # ax.grid(True)
     plt.tight_layout()
-    fig.savefig(f"figures/seasonal_means_of_cluster_{cluster_label}")
+    fig.savefig(output_path / f"Daily_Mean_Comparison.png")
     plt.close(fig)
 
 
