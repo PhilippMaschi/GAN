@@ -51,7 +51,7 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     plt.show()
 
 
-def compare_peak_and_mean(real_data, synthetic_data):
+def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     """
     Compare the peak and mean values between real and synthetic data.
     
@@ -59,11 +59,13 @@ def compare_peak_and_mean(real_data, synthetic_data):
     real_data (DataFrame): DataFrame containing the real load profiles.
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
+    real = real_data.iloc[:, 13:]
+    synthetic = synthetic_data.iloc[:, 13:]
     # Calculating peak and mean values
-    real_peaks = real_data.max()
-    synthetic_peaks = synthetic_data.max()
-    real_means = real_data.mean()
-    synthetic_means = synthetic_data.mean()
+    real_peaks = real.max()
+    synthetic_peaks = synthetic.max()
+    real_means = real.mean()
+    synthetic_means = synthetic.mean()
 
     # Plotting peak values
     plt.figure(figsize=(10, 7))
@@ -72,7 +74,11 @@ def compare_peak_and_mean(real_data, synthetic_data):
     plt.title('Comparison of Peak Values')
     plt.xlabel('Profile Index')
     plt.ylabel('Peak Value')
+    ax = plt.gca()
+    ax.get_xaxis().set_ticks([])
     plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_path / f"total_peak_of_profiles_comparison.png")
     plt.show()
 
     # Plotting mean values
@@ -80,13 +86,17 @@ def compare_peak_and_mean(real_data, synthetic_data):
     plt.plot(real_means, label='Real Means', color='blue')
     plt.plot(synthetic_means, label='Synthetic Means', color='red')
     plt.title('Comparison of Mean Values')
-    plt.xlabel('Profile Index')
     plt.ylabel('Mean Value')
     plt.legend()
+    ax = plt.gca()
+    ax.get_xaxis().set_ticks([])
+    plt.xlabel('Profile Index')
+    plt.tight_layout()
+    plt.savefig(output_path / f"total_mean_of_profiles_comparison.png")
     plt.show()
 
 
-def plot_seasonal_daily_means(df_real: pd.DataFrame, df_synthetic: pd.DataFrame):
+def plot_seasonal_daily_means(df_real: pd.DataFrame, df_synthetic: pd.DataFrame, output_path: Path):
     # add seasons to df:
     season_groups = df.groupby("meteorological season")
 
@@ -154,6 +164,12 @@ def load_all(clusterLabel: int):
 if __name__ == "__main__":
     figures_output = Path(r"plots")
     df_real, df_synthetic = load_all(clusterLabel=1)
+    plot_seasonal_daily_means(df_real=df_real,
+                              df_synthetic=df_synthetic,
+                              output_path=figures_output)
+    compare_peak_and_mean(real_data=df_real,
+                          synthetic_data=df_synthetic,
+                          output_path=figures_output)
     plot_pca_analysis(real_data=df_real,
                       synthetic_data=df_synthetic,
                       output_path=figures_output)
