@@ -201,18 +201,18 @@ class GAN(object):
                 self.iterCount += 1
 
         del self.samples
-        del self.labels
         del self.samplesScaled
         del self.dataset
         del self.dataLoader
 
-    def generate_sample(self, label_list: list):
+    def generate_sample(self):
         synthSamples_list = []
-        for item in label_list:
+        for item in self.labels:
             noise = randn(1, self.dimLatent, device = self.device).to_sparse()
             label_ = full(size = (1,), fill_value = item, device = self.device, dtype = torch.int32)
             sampleGen = self.Gen(noise, label_).detach().to_dense().cpu().numpy()
             synthSamples_list.append(sampleGen)
         synthSamples = np.vstack(synthSamples_list)
-        return synthSamples
+        scaled_gen_sample = self.scaler.inverse_transform(synthSamples.T).T
+        return scaled_gen_sample
 
