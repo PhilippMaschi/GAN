@@ -3,15 +3,31 @@ import pandas as pd
 import numpy as np
 
 #%% Dicts and lists
-metSeason_dict = \
-    {item: 'Spring' for item in [3, 4, 5]} | \
-    {item: 'Summer' for item in [6, 7, 8]} | \
-    {item: 'Fall' for item in [9, 10, 11]} | \
-    {item: 'Winter' for item in [12, 1, 2]}
 
-weekend_dict = \
-    {item: False for item in range(5)} | \
-    {item: True for item in [5, 6]}
+metSeason_dict = {
+    1: "Winter",
+    2: "Winter",
+    3: "Spring",
+    4:"Spring",
+    5:"Spring",
+    6: 'Summer',
+    7: 'Summer',
+    8: 'Summer',
+    9: 'Fall',
+    10: 'Fall',
+    11: 'Fall',
+    12: "Winter",
+}
+
+weekend_dict = {
+    0: False,
+    1: False,
+    2: False,
+    3: False,
+    4: False,
+    5: True,
+    6: True
+}
 
 holidays = country_holidays('ES', years = [2021, 2022]).keys()
 newFeatures = [
