@@ -138,75 +138,73 @@ class GAN(object):
             self.labelsFixed = full(size = (self.exampleCount,), fill_value = self.testLabel, device = self.device, dtype = torch.int32)
     
     def train(self):
-        #with profile(activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes = True, profile_memory = True,with_stack=True) as prof:
-            for epoch in tqdm(range(self.epochCount)):
-                for batchIdx, (data, target) in enumerate(self.dataLoader): #target = actual (real) label
-                    data = data.to(device = self.device, dtype = torch.float32)
-                    target = target.to(device = self.device, dtype = torch.int32)
-    
-                    # Train discriminator with real data
-                    tstamp_1 = perf_counter()
-                    self.Dis.zero_grad()                                                                                            #set the gradients to zero for every mini-batch
-                    yReal = self.Dis(data, target)                                                                                  #train discriminator with real data
-                    labelReal = full(size = (data.size(0), 1), fill_value = 1, device = self.device, dtype = torch.float32)         #a tensor containing only ones
-                    lossDisReal = self.criterion(yReal, labelReal)                                                                  #calculate the loss
-                    lossDisReal.backward()                                                                                          #calculate new gradients
-                    #print(f'Train discriminator with real data: {perf_counter() - tstamp_1}')
-                    # Train discriminator with fake data
-                    tstamp_2 = perf_counter()
-                    noise = randn(data.size(0), self.dimLatent, device = self.device).to_sparse()                                               #create a tensor filled with random numbers
-                    randomLabelFake = torch.randint(low = 0, high = self.classCount, size = (data.size(0),), device = self.device)  #random labels needed in addition to the noise
-                    labelFake = full(size = (data.size(0), 1), fill_value = 0, device = self.device, dtype = torch.float32)         #a tensor containing only zeros
-                    xFake = self.Gen(noise, randomLabelFake)                                                                        #create fake data from noise + random labels with generator
-                    yFake = self.Dis(xFake.detach(), randomLabelFake)                                                               #let the discriminator label the fake data (`.detach()` creates a copy of the tensor)
-                    lossDisFake = self.criterion(yFake, labelFake)
-                    lossDisFake.backward()
-    
-                    lossDis = (lossDisReal + lossDisFake)                                                                           #compute the total discriminator loss
-                    grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm = self.maxNorm)                  #gradient clipping (large max_norm to avoid actual clipping)
-                    self.optimDis.step()                                                                                            #update the discriminator
-                    #print(f'Train discriminator with fake data: {perf_counter() - tstamp_2}')
-    
-                    # Train generator (now that we fed the discriminator with fake data)
-                    tstamp_3 = perf_counter()
-                    self.Gen.zero_grad()
-                    yFake_2 = self.Dis(xFake, randomLabelFake)                                                                      #let the discriminator label the fake data (now that the discriminator is updated)
-                    lossGen = self.criterion(yFake_2, labelReal)                                                                    #calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
-                    lossGen.backward()
-                    grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm = self.maxNorm)
-                    self.optimGen.step()
-                    #print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
-    
-                    # Log the progress
-                    tstamp_4 = perf_counter()
-                    self.df_loss.loc[len(self.df_loss)] = [
-                        epoch,
-                        batchIdx,
-                        lossDisReal.detach().cpu().numpy(),
-                        lossDisFake.detach().cpu().numpy(),
-                        lossDis.detach().cpu().numpy(),
-                        lossGen.detach().cpu().numpy(),
-                        grad_norm_dis.detach().cpu().numpy(),
-                        grad_norm_gen.detach().cpu().numpy()
-                    ]
-                    if self.iterCount % int(self.epochCount*len(self.dataLoader)/10) == 0 or self.iterCount == self.epochCount*len(self.dataLoader) - 1:
-                        #print(f'training: {int(self.iterCount/(self.epochCount*len(self.dataLoader))*100)} %')
-                        if isinstance(self.testLabel, int):
-                            with no_grad():
-                                xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
-                                yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
-                                plt.figure(figsize = (4, 3), facecolor = 'w')
-                                plt.plot(xFakeTest.detach().cpu().numpy().T)
-                                plt.title(f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
-                                plt.show();
-                    self.iterCount += 1
-                    #print(f'Log the progress: {perf_counter() - tstamp_4}')
-        ##print(prof.key_averages().table(sort_by = 'cuda_memory_usage', row_limit=10))
-            del self.samples
-            del self.labels
-            del self.samplesScaled
-            del self.dataset
-            del self.dataLoader
+        for epoch in tqdm(range(self.epochCount)):
+            for batchIdx, (data, target) in enumerate(self.dataLoader): #target = actual (real) label
+                data = data.to(device = self.device, dtype = torch.float32)
+                target = target.to(device = self.device, dtype = torch.int32)
+
+                # Train discriminator with real data
+                tstamp_1 = perf_counter()
+                self.Dis.zero_grad()                                                                                            #set the gradients to zero for every mini-batch
+                yReal = self.Dis(data, target)                                                                                  #train discriminator with real data
+                labelReal = full(size = (data.size(0), 1), fill_value = 1, device = self.device, dtype = torch.float32)         #a tensor containing only ones
+                lossDisReal = self.criterion(yReal, labelReal)                                                                  #calculate the loss
+                lossDisReal.backward()                                                                                          #calculate new gradients
+                #print(f'Train discriminator with real data: {perf_counter() - tstamp_1}')
+                # Train discriminator with fake data
+                tstamp_2 = perf_counter()
+                noise = randn(data.size(0), self.dimLatent, device = self.device).to_sparse()                                               #create a tensor filled with random numbers
+                randomLabelFake = torch.randint(low = 0, high = self.classCount, size = (data.size(0),), device = self.device)  #random labels needed in addition to the noise
+                labelFake = full(size = (data.size(0), 1), fill_value = 0, device = self.device, dtype = torch.float32)         #a tensor containing only zeros
+                xFake = self.Gen(noise, randomLabelFake)                                                                        #create fake data from noise + random labels with generator
+                yFake = self.Dis(xFake.detach(), randomLabelFake)                                                               #let the discriminator label the fake data (`.detach()` creates a copy of the tensor)
+                lossDisFake = self.criterion(yFake, labelFake)
+                lossDisFake.backward()
+
+                lossDis = (lossDisReal + lossDisFake)                                                                           #compute the total discriminator loss
+                grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm = self.maxNorm)                  #gradient clipping (large max_norm to avoid actual clipping)
+                self.optimDis.step()                                                                                            #update the discriminator
+                #print(f'Train discriminator with fake data: {perf_counter() - tstamp_2}')
+
+                # Train generator (now that we fed the discriminator with fake data)
+                tstamp_3 = perf_counter()
+                self.Gen.zero_grad()
+                yFake_2 = self.Dis(xFake, randomLabelFake)                                                                      #let the discriminator label the fake data (now that the discriminator is updated)
+                lossGen = self.criterion(yFake_2, labelReal)                                                                    #calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
+                lossGen.backward()
+                grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm = self.maxNorm)
+                self.optimGen.step()
+                #print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
+
+                # Log the progress
+                tstamp_4 = perf_counter()
+                self.df_loss.loc[len(self.df_loss)] = [
+                    epoch,
+                    batchIdx,
+                    lossDisReal.detach().cpu().numpy(),
+                    lossDisFake.detach().cpu().numpy(),
+                    lossDis.detach().cpu().numpy(),
+                    lossGen.detach().cpu().numpy(),
+                    grad_norm_dis.detach().cpu().numpy(),
+                    grad_norm_gen.detach().cpu().numpy()
+                ]
+                if self.iterCount % int(self.epochCount*len(self.dataLoader)/10) == 0 or self.iterCount == self.epochCount*len(self.dataLoader) - 1:
+                    #print(f'training: {int(self.iterCount/(self.epochCount*len(self.dataLoader))*100)} %')
+                    if isinstance(self.testLabel, int):
+                        with no_grad():
+                            xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
+                            yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
+                            plt.figure(figsize = (4, 3), facecolor = 'w')
+                            plt.plot(xFakeTest.detach().cpu().numpy().T)
+                            plt.title(f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
+                            plt.show();
+                self.iterCount += 1
+
+        del self.samples
+        del self.labels
+        del self.samplesScaled
+        del self.dataset
+        del self.dataLoader
 
     def generate_sample(self):
         synthSamples_list = []
