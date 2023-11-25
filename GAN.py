@@ -206,12 +206,13 @@ class GAN(object):
         del self.dataset
         del self.dataLoader
 
-    def generate_sample(self):
+    def generate_sample(self, label_list: list):
         synthSamples_list = []
-        for item in self.dataLoader.dataset.tensors[1]:
-            noise = randn(1, self.dimLatent, device = self.device)
+        for item in label_list:
+            noise = randn(1, self.dimLatent, device = self.device).to_sparse()
             label_ = full(size = (1,), fill_value = item, device = self.device, dtype = torch.int32)
-            sampleGen = self.Gen(noise, label_).detach().cpu().numpy()
+            sampleGen = self.Gen(noise, label_).detach().to_dense().cpu().numpy()
             synthSamples_list.append(sampleGen)
         synthSamples = np.vstack(synthSamples_list)
         return synthSamples
+
