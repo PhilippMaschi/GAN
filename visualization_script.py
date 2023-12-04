@@ -258,7 +258,7 @@ def load_all(clusterLabel: int):
     df_labels = pd.read_csv(GAN_data_path / 'DBSCAN_15_clusters_labels.csv', sep = ';')
     df_labels['name'] = df_labels['name'].str.split('_', expand = True)[1]
 
-    number_of_profiles_gan_was_trained_on = 30
+    number_of_profiles_gan_was_trained_on = 103
     profiles = df_labels.loc[df_labels['labels'] == clusterLabel, 'name'].to_list()[:number_of_profiles_gan_was_trained_on]
     df_profiles = df_loadProfiles[df_loadProfiles.columns[:13].tolist() + [item for item in profiles if item in df_loadProfiles.columns]].copy()
     
@@ -268,7 +268,7 @@ def load_all(clusterLabel: int):
 
    
          # load synthetic profiles
-    model = torch.load("models/model_test_andi.pt")
+    model = torch.load("models/model_clusterLabel_1_of_15_DBSCAN_batchSize_2000_dimLatent_32_featureCount_24_classCount_40685_dimEmbedding_40685_lr_1e-05_maxNorm_1000000.0_epochCount_1000_nr_profiles_103.pt")
     array = model.generate_sample()
     df_synthProfiles = df_shape.copy()
     df_synthProfiles[::] = array
