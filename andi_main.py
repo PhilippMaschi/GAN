@@ -125,7 +125,7 @@ def main(password_, num_prof,  dim_emmbedded= 1000):
 
     samples = df_profiles.to_numpy().astype("f4")
     labels = np.tile(np.array(range(395)) ,  num_prof)    #each day gets the same label without considering which profile
-    #labels = np.array(range(len(df_profiles)))  # labels is index vector from 0 to x that indicates the day
+    labels = np.array(range(len(df_profiles)))  # labels is index vector from 0 to x that indicates the day
 
     ####################
     #
@@ -147,7 +147,7 @@ def main(password_, num_prof,  dim_emmbedded= 1000):
     dimEmbedding = dim_emmbedded    #classCount
     lr = 1e-5
     maxNorm = 1e6
-    epochCount =300
+    epochCount =1000
     #testLabel = 0
 
     ####################
