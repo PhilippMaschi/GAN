@@ -1,4 +1,4 @@
-
+import torch
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -221,11 +221,44 @@ def compare_distributions(real_df,
         plt.show()
 
 
+def get_season(date):
+    seasons = {'spring': pd.date_range(start='2023-03-21 00:00:00', end='2023-06-20 23:00:00', freq="H"),
+               'summer': pd.date_range(start='2023-06-21 00:00:00', end='2023-09-22 23:00:00', freq="H"),
+               'autumn': pd.date_range(start='2023-09-23 00:00:00', end='2023-12-20 23:00:00', freq="H")}
+
+    if date in seasons['spring']:
+        return 'spring'
+    elif date in seasons['summer']:
+        return 'summer'
+    elif date in seasons['autumn']:
+        return 'autumn'
+    else:
+        return 'winter'
+
+def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
+    if len(df) > 365:
+        datetime_index = pd.date_range(start='2023-01-01 00:00:00', periods=8760, freq='H')
+    else:
+        datetime_index = pd.date_range(start='2023-01-01 ', periods=365, freq='D')
+    df.index = datetime_index
+    df['season'] = df.index.map(get_season)
+    df["hour"] = df.index.hour
+    return df.reset_index(drop=True)
+
 
 def load_all(clusterLabel: int):
     path = Path(r"C:\Users\mascherbauer\OneDrive\EEG_Projekte\MODERATE\model")
     # load synthetic profiles
     df_ = pd.read_csv(path / "synthetic.csv").drop(columns=["date", "hour of the day"])
+
+    model = torch.load(path / "model_test_andi.pt", map_location=torch.device("cpu"))
+    array = model.generate_sample()
+    # df_synthProfiles = df_profiles.copy()
+    # df_synthProfiles[::] = array
+    # df_synthetic = df_synthProfiles.reset_index().melt(id_vars=["date", "profile"]).pivot_table(values="value",
+    #                                                                                             columns="profile",
+    #                                                                                             index=["date",
+    #                                                                                                    "hour of the day"])
     label_list = list(df_.columns)
 
     df_loadProfiles = crp.read_encrypted(
