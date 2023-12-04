@@ -144,10 +144,12 @@ def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: s
     classCount = len(set(training_labels))  # labels bzw anzahl der Tage times number of load profiles
     lr = 1e-5
     maxNorm = 1e6
-    epochCount = 1000
+    epochCount = 10
     # testLabel = 0
+    model_name = 'model_test_philipp'
+
     model = GAN(
-        name="current_model",
+        name=model_name,
         device=device,
         batchSize=batchSize,
         samples=training_samples,
@@ -165,10 +167,9 @@ def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: s
     model.train()
 
     # Save model
-    model.name = 'model_test_philipp'
     print(f"Training {model.name} done""")
     print("saving model ...")
-    torch.save(model, f'models/{model.name}.pt')
+    # torch.save(model, f'models/{model.name}.pt')
     print(f"model {model.name} saved")
 
 
@@ -203,14 +204,12 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
 
-    for i in [30]:
-        print(f"Size  {i=}")
-        main(password_=password,
-             number_of_profiles=i,
-             dim_emmbedded=dim_embed,
-             clusterLabel=0,
-             label_csv_filename="DBSCAN_15_clusters_labels.csv")
-        torch.cuda.empty_cache()
+    main(password_=password,
+         number_of_profiles=10,
+         dim_emmbedded=dim_embed,
+         clusterLabel=0,
+         label_csv_filename="DBSCAN_15_clusters_labels.csv")
+    torch.cuda.empty_cache()
 
 os.kill(pid, signal.SIGTERM)
 sys.exit()

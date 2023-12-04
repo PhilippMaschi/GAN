@@ -49,7 +49,6 @@ class Generator(nn.Module):
         x = self.model(cat((labels_, noise), -1))
         return x
 
-
 class Discriminator(nn.Module):
     def __init__(self, featureCount, classCount, dimEmbedding):
         super(Discriminator, self).__init__()
@@ -147,13 +146,31 @@ class GAN(object):
     def __labels__(self):
         return self.labels
 
+    def save_model_state(self, checkpoint_path, epoch):
+        torch.save({
+            "epoch": epoch,
+            'generator_state_dict': self.Gen.state_dict(),
+            'discriminator_state_dict': self.Dis.state_dict(),
+            'optimizer_gen_state_dict': self.optimGen.state_dict(),
+            'optimizer_dis_state_dict': self.optimDis.state_dict(),
+            "label": self.labels
+        }, checkpoint_path)
+
+    def load_model_state(self, checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        self.Gen.load_state_dict(checkpoint['generator_state_dict'])
+        self.Dis.load_state_dict(checkpoint['discriminator_state_dict'])
+        self.optimGen.load_state_dict(checkpoint['optimizer_gen_state_dict'])
+        self.optimDis.load_state_dict(checkpoint['optimizer_dis_state_dict'])
+        print(f"loaded model at epoch: {checkpoint['epoch']}")
+
     def train(self):
         for epoch in tqdm(range(self.epochCount)):
             for batchIdx, (data, target_) in enumerate(self.dataLoader):  # target = actual (real) label
-                data = data.to(device=self.device,
-                               dtype=torch.float32)  # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
-                target = target_.to(device=self.device,
-                                    dtype=torch.int32)  # Index column vector: rows are days x profiles (as provoded by dataLoader => length Batchsize))
+                # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
+                data = data.to(device=self.device, dtype=torch.float32)
+                # Index column vector: rows are days x profiles (as provoded by dataLoader => length Batchsize))
+                target = target_.to(device=self.device, dtype=torch.int32)
 
                 # Train discriminator with real data
                 tstamp_1 = perf_counter()
@@ -166,8 +183,8 @@ class GAN(object):
                 # print(f'Train discriminator with real data: {perf_counter() - tstamp_1}')
                 # Train discriminator with fake data
                 tstamp_2 = perf_counter()
-                noise = randn(data.size(0), self.dimLatent,
-                              device=self.device)  # create a tensor filled with random numbers rows: Number of days, column dimLatent
+                # create a tensor filled with random numbers rows: Number of days, column dimLatent
+                noise = randn(data.size(0), self.dimLatent, device=self.device)
                 randomLabelFake = target_.to(device=self.device,
                                              dtype=torch.int32)  # torch.randint(low = 0, high = self.classCount, size = (data.size(0),), device = self.device)  #random labels needed in addition to the noise
                 labelFake = full(size=(data.size(0), 1), fill_value=0, device=self.device,
@@ -194,6 +211,11 @@ class GAN(object):
                 grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
                 self.optimGen.step()
                 # print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
+
+                # save the model state every 500 epochs:
+                if (epoch + 1) % 5 == 0:
+                    self.save_model_state(f"models/{self.name}_GAN_epoch_{epoch + 1}.pt", epoch)
+
 
                 # Log the progress
                 tstamp_4 = perf_counter()
@@ -226,18 +248,57 @@ class GAN(object):
         del self.dataset
         del self.dataLoader
 
+    def generate_sample(self, labels: np.array):
+        with torch.no_grad():
+            noise = randn(len(self.labels), self.dimLatent, device=self.device)
+        return self.Gen(noise, self.labels.to(device=self.device, dtype=torch.int32)).detach().to_dense().cpu().numpy()
 
-    def generate_sample(self):
-        synthSamples_list = []
-        for item in self.labels:
-            noise = randn(1, self.dimLatent, device=self.device)
-            label_ = full(size=(1,), fill_value=item, device=self.device, dtype=torch.int32)
-            sampleGen = self.Gen(noise, label_).detach().to_dense().cpu().numpy()
-            synthSamples_list.append(sampleGen)
-        synthSamples = np.vstack(synthSamples_list)
-        return synthSamples
-
-    def generate_scaled_sample(self):
-        synthSamples = self.generate_sample()
+    def generate_scaled_sample(self, labels: np.array):
+        synthSamples = self.generate_sample(self.labels)
         scaled_gen_sample = self.scaler.inverse_transform(synthSamples.T).T
         return scaled_gen_sample
+
+
+def generate_data_from_saved_models(start_epoch,
+                                    end_epoch,
+                                    epoch_interval,
+                                    dim_latent,
+                                    featureCount,
+                                    class_count,
+                                    dim_embedding,
+                                    number_of_profiles: int,
+                                    device='cpu'):
+    generated_data = {}
+
+    for epoch in range(start_epoch, end_epoch + 1, epoch_interval):
+        # Construct the path for the saved model state
+        model_path = f"models/model_test_philipp_GAN_epoch_10.pt"
+
+        # Initialize the generator
+        generator = Generator(dim_latent, featureCount, class_count, dim_embedding)
+        generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
+        generator.to(device)
+        generator.eval()
+#
+        # Generate the data
+        with torch.no_grad():
+            training_labels = np.tile(np.array(range(class_count)), number_of_profiles)
+            noise = torch.randn(len(training_labels), dim_latent, device="cpu")
+            labels = torch.tensor(training_labels)#.to(device=device, dtype=torch.int32)   # Example: Random labels
+            generated_samples = generator(noise, labels).cpu().numpy()
+
+        # Store or process the generated data
+        generated_data[epoch] = generated_samples
+
+    return generated_data
+
+if __name__ == "__main__":
+    generate_data_from_saved_models(start_epoch=10, end_epoch=10,
+                                    epoch_interval=1,
+                                    dim_latent=10,
+                                    featureCount=24,
+                                    class_count=395,
+                                    dim_embedding=100,
+                                    number_of_profiles=10,
+                                    device='cpu'
+                                    )
