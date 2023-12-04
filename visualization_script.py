@@ -1,4 +1,4 @@
-import torch
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +7,9 @@ from sklearn.preprocessing import StandardScaler
 import cryptpandas as crp
 from pathlib import Path
 from scipy.stats import ks_2samp
+import torch
 from sdmetrics.timeseries import LSTMDetection
+
 
 def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     """
@@ -18,6 +20,11 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
     # Combining the data
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    real = real_data[numeric_cols]
+    synthetic = synthetic_data[numeric_cols]
+    combined_data = pd.concat([real, synthetic], axis=0)
+    labels = np.array(['Real'] * len(real) + ['Synthetic'] * len(synthetic))
     numeric_cols = [col for col in df_real.columns if is_number(col)]
     real = real_data[numeric_cols]
     synthetic = synthetic_data[numeric_cols]
@@ -34,6 +41,16 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
 
     # Plotting the PCA
     plt.figure(figsize=(10, 7))
+    plt.scatter(principal_components[labels == 'Real', 0],
+                principal_components[labels == 'Real', 1],
+                alpha=0.3,
+                label='Real',
+                )
+    plt.scatter(principal_components[labels == 'Synthetic', 0],
+                principal_components[labels == 'Synthetic', 1],
+                alpha=0.3,
+                label='Synthetic',
+                )
     plt.scatter(principal_components[labels == 'Real', 0],
                 principal_components[labels == 'Real', 1],
                 alpha=0.3,
@@ -173,6 +190,7 @@ def plot_seasonal_daily_means(df_real: pd.DataFrame,
         # ax.grid(True)
     plt.tight_layout()
     fig.savefig(output_path / f"Daily_Mean_Comparison.png")
+    plt.show()
     plt.close(fig)
 
 
@@ -247,28 +265,35 @@ def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_all(clusterLabel: int):
-    path = Path(r"C:\Users\mascherbauer\OneDrive\EEG_Projekte\MODERATE\model")
-    # load synthetic profiles
-    df_ = pd.read_csv(path / "synthetic.csv").drop(columns=["date", "hour of the day"])
-
-    model = torch.load(path / "model_test_andi.pt", map_location=torch.device("cpu"))
-    array = model.generate_sample()
-    # df_synthProfiles = df_profiles.copy()
-    # df_synthProfiles[::] = array
-    # df_synthetic = df_synthProfiles.reset_index().melt(id_vars=["date", "profile"]).pivot_table(values="value",
-    #                                                                                             columns="profile",
-    #                                                                                             index=["date",
-    #                                                                                                    "hour of the day"])
-    label_list = list(df_.columns)
-
+    path = Path(__file__).parent.parent / "GAN_data"
     df_loadProfiles = crp.read_encrypted(
         path=path / 'all_profiles.crypt',
         password="Ene123Elec#4")
-    columns_to_keep = list(df_loadProfiles.columns)[:13]
-    df_real = df_loadProfiles[columns_to_keep + label_list]
-    df_synthetic = pd.concat([df_real[columns_to_keep], df_], axis=1)
-    assert df_real.shape == df_synthetic.shape
-    return df_real, df_synthetic
+
+    GAN_data_path = Path().absolute().parent / 'GAN_data'
+    df_labels = pd.read_csv(GAN_data_path / 'DBSCAN_15_clusters_labels.csv', sep = ';')
+    df_labels['name'] = df_labels['name'].str.split('_', expand = True)[1]
+
+    number_of_profiles_gan_was_trained_on = 103
+    profiles = df_labels.loc[df_labels['labels'] == clusterLabel, 'name'].to_list()[:number_of_profiles_gan_was_trained_on]
+    df_profiles = df_loadProfiles[df_loadProfiles.columns[:13].tolist() + [item for item in profiles if item in df_loadProfiles.columns]].copy()
+
+
+    df_shape= df_profiles.melt(id_vars = df_loadProfiles.columns[:13], value_vars = df_profiles.columns[13:], var_name = 'profile')
+    df_shape = df_shape.pivot_table(values = 'value', index = ['date', 'profile'], columns = 'hour of the day')
+
+
+         # load synthetic profiles
+    model = torch.load("models/model_clusterLabel_1_of_15_DBSCAN_batchSize_2000_dimLatent_32_featureCount_24_classCount_40685_dimEmbedding_40685_lr_1e-05_maxNorm_1000000.0_epochCount_1000_nr_profiles_103.pt")
+    array = model.generate_sample()
+    df_synthProfiles = df_shape.copy()
+    df_synthProfiles[::] = array
+
+    df_synthetic = df_synthProfiles.reset_index().melt(id_vars=["date","profile"]).pivot_table(values="value", columns="profile", index=["date", "hour of the day"])
+    df_synthetic = pd.concat([df_loadProfiles[df_loadProfiles.columns[:13]], df_synthetic.reset_index(drop=True)], axis=1)
+
+    assert df_profiles.shape == df_synthetic.shape
+    return df_profiles, df_synthetic
 
 
 def run_sdm_lstm_detection_test(real_df, synthetic_df):
@@ -281,8 +306,8 @@ def run_sdm_lstm_detection_test(real_df, synthetic_df):
 if __name__ == "__main__":
     figures_output = Path(r"plots")
     df_real, df_synthetic = load_all(clusterLabel=1)
-    run_sdm_lstm_detection_test(real_df=df_real,
-                                synthetic_df=df_synthetic)
+    #run_sdm_lstm_detection_test(real_df=df_real,
+    #                            synthetic_df=df_synthetic)
     # compare_distributions(real_df=df_real,
     #                       synthetic_df=df_synthetic,
     #                       output_path=figures_output,
