@@ -24,6 +24,11 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     synthetic = synthetic_data[numeric_cols]
     combined_data = pd.concat([real, synthetic], axis=0)
     labels = np.array(['Real'] * len(real) + ['Synthetic'] * len(synthetic))
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    real = real_data[numeric_cols]
+    synthetic = synthetic_data[numeric_cols]
+    combined_data = pd.concat([real, synthetic], axis=0)
+    labels = np.array(['Real'] * len(real) + ['Synthetic'] * len(synthetic))
 
     # Standardizing the data
     scaler = StandardScaler()
@@ -45,13 +50,26 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
                 alpha=0.3,
                 label='Synthetic',
                 )
+    plt.scatter(principal_components[labels == 'Real', 0],
+                principal_components[labels == 'Real', 1],
+                alpha=0.3,
+                label='Real',
+                )
+    plt.scatter(principal_components[labels == 'Synthetic', 0],
+                principal_components[labels == 'Synthetic', 1],
+                alpha=0.3,
+                label='Synthetic',
+                )
     plt.title('PCA of Real vs Synthetic Data')
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
     plt.legend()
     plt.savefig(output_path / f"PCA.png")
+    plt.savefig(output_path / f"PCA.png")
     plt.show()
 
+
+def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
 
 def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     """
@@ -64,7 +82,14 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     numeric_cols = [col for col in df_real.columns if is_number(col)]
     real = real_data[numeric_cols]
     synthetic = synthetic_data[numeric_cols]
+    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    real = real_data[numeric_cols]
+    synthetic = synthetic_data[numeric_cols]
     # Calculating peak and mean values
+    real_peaks = real.max()
+    synthetic_peaks = synthetic.max()
+    real_means = real.mean()
+    synthetic_means = synthetic.mean()
     real_peaks = real.max()
     synthetic_peaks = synthetic.max()
     real_means = real.mean()
@@ -79,7 +104,11 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     plt.ylabel('Peak Value')
     ax = plt.gca()
     ax.get_xaxis().set_ticks([])
+    ax = plt.gca()
+    ax.get_xaxis().set_ticks([])
     plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_path / f"total_peak_of_profiles_comparison.png")
     plt.tight_layout()
     plt.savefig(output_path / f"total_peak_of_profiles_comparison.png")
     plt.show()
@@ -91,6 +120,11 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     plt.title('Comparison of Mean Values')
     plt.ylabel('Mean Value')
     plt.legend()
+    ax = plt.gca()
+    ax.get_xaxis().set_ticks([])
+    plt.xlabel('Profile Index')
+    plt.tight_layout()
+    plt.savefig(output_path / f"total_mean_of_profiles_comparison.png")
     ax = plt.gca()
     ax.get_xaxis().set_ticks([])
     plt.xlabel('Profile Index')
