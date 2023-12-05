@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from time import perf_counter
+# import pytorch.lightning
 
 
 # import sys
@@ -20,7 +21,8 @@ class Generator(nn.Module):
         self.featureCount = featureCount  # hours per day
         self.classCount = classCount
         self.dimEmbedding = dimEmbedding  # dimension of the embedding tensor
-        self.labelEmbedding = nn.Embedding(num_embeddings=self.classCount, embedding_dim=self.dimEmbedding)
+        # self.labelEmbedding = nn.Embedding(num_embeddings=self.classCount, embedding_dim=self.dimEmbedding)
+        # todo neue labels (tage + monate) und die mit noise zusammen fügen statt embedding direkt in erste layer
         self.model = nn.Sequential(
             # 1st layer
             nn.Linear(in_features=self.dimLatent + self.dimEmbedding, out_features=64),
@@ -45,6 +47,8 @@ class Generator(nn.Module):
 
     def forward(self, noise, labels):
         labels_ = self.labelEmbedding(labels)
+        label_plusnoise = torch.randn(12, 365+noise, 1)  #12 tage, 50 werte um den tag zu beschreiben,
+        # label + noise muss dann die dimension 50 am ende haben damit es in die erste layer vom NN rein kann
         # apply model to concatenated tensor (fixed label tensor + noise tensor) noise is added to columns: Rows stay the same
         x = self.model(cat((labels_, noise), -1))
         return x
@@ -191,6 +195,7 @@ class GAN(object):
                 tstamp_2 = perf_counter()
                 # create a tensor filled with random numbers rows: Number of days, column dimLatent
                 noise = randn(data.size(0), self.dimLatent, device=self.device)
+
                 randomLabelFake = target_.to(device=self.device,
                                              dtype=torch.int32)  # torch.randint(low = 0, high = self.classCount, size = (data.size(0),), device = self.device)  #random labels needed in addition to the noise
                 labelFake = full(size=(data.size(0), 1), fill_value=0, device=self.device,

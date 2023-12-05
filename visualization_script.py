@@ -8,7 +8,6 @@ import cryptpandas as crp
 from pathlib import Path
 from scipy.stats import ks_2samp
 import torch
-from sdmetrics.timeseries import LSTMDetection
 
 
 def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
@@ -283,7 +282,7 @@ def load_all(clusterLabel: int):
     df_shape = df_shape.pivot_table(values = 'value', index = ['date', 'profile'], columns = 'hour of the day')
 
 
-         # load synthetic profiles
+    # load synthetic profiles
     model = torch.load("models/model_clusterLabel_1_of_15_DBSCAN_batchSize_2000_dimLatent_32_featureCount_24_classCount_40685_dimEmbedding_40685_lr_1e-05_maxNorm_1000000.0_epochCount_1000_nr_profiles_103.pt")
     array = model.generate_sample()
     df_synthProfiles = df_shape.copy()
@@ -296,12 +295,28 @@ def load_all(clusterLabel: int):
     return df_profiles, df_synthetic
 
 
-def run_sdm_lstm_detection_test(real_df, synthetic_df):
-    numeric = [col for col in df_real.columns if is_number(col)]
+# def run_sdm_lstm_detection_test(real_df, synthetic_df):
+#     numeric = [col for col in df_real.columns if is_number(col)]
+#
+#     a = LSTMDetection.compute(real_data=df_real[numeric],
+#                               synthetic_data=df_synthetic[numeric],
+#                               metadata=df_real["timestamp"])
 
-    a = LSTMDetection.compute(real_data=df_real[numeric],
-                              synthetic_data=df_synthetic[numeric],
-                              metadata=df_real["timestamp"])
+
+def small_analysis(clusterLabel: int):
+    figures_output = Path(r"plots")
+    df_real, df_synthetic = load_all(clusterLabel=1)
+
+    plot_seasonal_daily_means(df_real=df_real,
+                              df_synthetic=df_synthetic,
+                              output_path=figures_output)
+    compare_peak_and_mean(real_data=df_real,
+                          synthetic_data=df_synthetic,
+                          output_path=figures_output)
+    plot_pca_analysis(real_data=df_real,
+                      synthetic_data=df_synthetic,
+                      output_path=figures_output)
+
 
 if __name__ == "__main__":
     figures_output = Path(r"plots")
@@ -322,3 +337,5 @@ if __name__ == "__main__":
     plot_pca_analysis(real_data=df_real,
                       synthetic_data=df_synthetic,
                       output_path=figures_output)
+
+

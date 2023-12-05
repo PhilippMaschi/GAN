@@ -125,11 +125,23 @@ def train_gan(password_,
     # all load profiles:
     df_loadProfiles = crp.read_encrypted(path=os.path.join(GAN_data_path, 'all_profiles.crypt'), password=password_)
 
+
+
     # filter the total amount of profiles:
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
                                      filepath=GAN_data_path / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
+
+
+    arr = np.zeros(24+1,)
+    for name, group in df_loadProfiles.groupby("month"):
+        vals = group.values.flatten()
+        month = list(set(group["month"]))
+
+        row = np.hstack([vals, month])
+        arr = np.vstack([arr, row])
+    target, fts = arr[:, :24], arr[:, 24]
 
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels)
     print(f"Shape training data: {training_df.shape} ")
