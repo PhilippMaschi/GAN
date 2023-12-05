@@ -283,9 +283,9 @@ def generate_data_from_saved_models(start_epoch,
         # Generate the data
         with torch.no_grad():
             training_labels = np.tile(np.array(range(class_count)), number_of_profiles)
-            noise = torch.randn(len(training_labels), dim_latent, device="cpu")
-            labels = torch.tensor(training_labels)#.to(device=device, dtype=torch.int32)   # Example: Random labels
-            generated_samples = generator(noise, labels).cpu().numpy()
+            noise = torch.randn(len(training_labels), dim_latent, device=device)
+            labels = torch.tensor(training_labels, device=device)  # Example: Random labels
+            generated_samples = generator(noise, labels).detach().cpu().numpy()
 
         # Store or process the generated data
         generated_data[epoch] = generated_samples
