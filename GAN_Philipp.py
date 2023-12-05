@@ -49,6 +49,7 @@ class Generator(nn.Module):
         x = self.model(cat((labels_, noise), -1))
         return x
 
+
 class Discriminator(nn.Module):
     def __init__(self, featureCount, classCount, dimEmbedding):
         super(Discriminator, self).__init__()
@@ -101,6 +102,9 @@ class GAN(object):
         self.epochCount = epochCount
         self.testLabel = testLabel
         self.exampleCount = exampleCount
+        self.file_name = f"{self.name}_batchSize={self.batchSize}_samples={self.samples}_labels={self.labels}_" \
+                         f"dimLatent={self.dimLatent}_featureCount={self.featureCount}_classCount={self.classCount}_" \
+                         f"dimEmbedding={self.dimEmbedding}"
 
         # Scale data and create dataLoader
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -108,15 +112,14 @@ class GAN(object):
         samples_ = torch.Tensor(self.samplesScaled)
         labels_ = torch.Tensor(self.labels)
         self.dataset = TensorDataset(samples_, labels_)
-        self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=False)  # True)
+        self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
 
-        # Initialize generator
-        self.Gen = Generator(dimLatent, featureCount, classCount,
-                             dimEmbedding)  # classCount all profiles x days, not batched
+        # Initialize generator, classCount all profiles x days, not batched
+        self.Gen = Generator(dimLatent, featureCount, classCount, self.dimEmbedding)
         self.Gen.to(self.device)
 
         # Initialize discriminator
-        self.Dis = Discriminator(featureCount, classCount, dimEmbedding)
+        self.Dis = Discriminator(featureCount, classCount, self.dimEmbedding)
         self.Dis.to(self.device)
 
         # Initialize optimizers
@@ -175,10 +178,13 @@ class GAN(object):
                 # Train discriminator with real data
                 tstamp_1 = perf_counter()
                 self.Dis.zero_grad()  # set the gradients to zero for every mini-batch
-                yReal = self.Dis(data, target)  # column vector: length as target train discriminator with real data, row vector: number of days x profiles
-                labelReal = full(size=(data.size(0), 1), fill_value=1, device=self.device,
+                # yReal: length as target train discriminator with real data, row vector: number of days x profiles
+                yReal = self.Dis(data, target)
+                labelReal = full(size=(data.size(0), 1),
+                                 fill_value=1,
+                                 device=self.device,
                                  dtype=torch.float32)  # Column vector a tensor containing only ones
-                lossDisReal = self.criterion(yReal, labelReal)  # calculate the loss : Single number?
+                lossDisReal = self.criterion(yReal, labelReal)  # calculate the loss : Single number
                 lossDisReal.backward()  # calculate new gradients
                 # print(f'Train discriminator with real data: {perf_counter() - tstamp_1}')
                 # Train discriminator with fake data
@@ -190,7 +196,8 @@ class GAN(object):
                 labelFake = full(size=(data.size(0), 1), fill_value=0, device=self.device,
                                  dtype=torch.float32)  # a tensor containing only zeros
                 xFake = self.Gen(noise, randomLabelFake)  # create fake data from noise + random labels with generator
-                yFake = self.Dis(xFake.detach(), randomLabelFake)  # let the discriminator label the fake data (`.detach()` creates a copy of the tensor)
+                yFake = self.Dis(xFake.detach(),
+                                 randomLabelFake)  # let the discriminator label the fake data (`.detach()` creates a copy of the tensor)
                 lossDisFake = self.criterion(yFake, labelFake)
                 lossDisFake.backward()
 
@@ -213,35 +220,34 @@ class GAN(object):
                 # print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 5 == 0:
-                    self.save_model_state(f"models/{self.name}_GAN_epoch_{epoch + 1}.pt", epoch)
-
+                if (epoch + 1) % 100 == 0:
+                    self.save_model_state(f"models/{self.file_name}_epoch={epoch + 1}.pt", epoch)
 
                 # Log the progress
                 tstamp_4 = perf_counter()
-                self.df_loss.loc[len(self.df_loss)] = [
-                    epoch,
-                    batchIdx,
-                    lossDisReal.detach().cpu().numpy(),
-                    lossDisFake.detach().cpu().numpy(),
-                    lossDis.detach().cpu().numpy(),
-                    lossGen.detach().cpu().numpy(),
-                    grad_norm_dis.detach().cpu().numpy(),
-                    grad_norm_gen.detach().cpu().numpy()
-                ]
-                if self.iterCount % max(1, int(self.epochCount * len(
-                        self.dataLoader) / 10)) == 0 or self.iterCount == self.epochCount * len(self.dataLoader) - 1:
-                    # print(f'training: {int(self.iterCount/(self.epochCount*len(self.dataLoader))*100)} %')
-                    if isinstance(self.testLabel, int):
-                        with no_grad():
-                            xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
-                            yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
-                            plt.figure(figsize=(4, 3), facecolor='w')
-                            plt.plot(xFakeTest.detach().cpu().numpy().T)
-                            plt.title(
-                                f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
-                            plt.show();
-                self.iterCount += 1
+                # self.df_loss.loc[len(self.df_loss)] = [
+                #     epoch,
+                #     batchIdx,
+                #     lossDisReal.detach().cpu().numpy(),
+                #     lossDisFake.detach().cpu().numpy(),
+                #     lossDis.detach().cpu().numpy(),
+                #     lossGen.detach().cpu().numpy(),
+                #     grad_norm_dis.detach().cpu().numpy(),
+                #     grad_norm_gen.detach().cpu().numpy()
+                # ]
+                # if self.iterCount % max(1, int(self.epochCount * len(
+                #         self.dataLoader) / 10)) == 0 or self.iterCount == self.epochCount * len(self.dataLoader) - 1:
+                #     # print(f'training: {int(self.iterCount/(self.epochCount*len(self.dataLoader))*100)} %')
+                #     if isinstance(self.testLabel, int):
+                #         with no_grad():
+                #             xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
+                #             yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
+                #             plt.figure(figsize=(4, 3), facecolor='w')
+                #             plt.plot(xFakeTest.detach().cpu().numpy().T)
+                #             plt.title(
+                #                 f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
+                #             plt.show();
+                # self.iterCount += 1
 
         del self.samples
         del self.samplesScaled
@@ -259,46 +265,35 @@ class GAN(object):
         return scaled_gen_sample
 
 
-def generate_data_from_saved_models(start_epoch,
-                                    end_epoch,
-                                    epoch_interval,
-                                    dim_latent,
-                                    featureCount,
-                                    class_count,
-                                    dim_embedding,
-                                    number_of_profiles: int,
-                                    device='cpu'):
-    generated_data = {}
-
-    for epoch in range(start_epoch, end_epoch + 1, epoch_interval):
-        # Construct the path for the saved model state
-        model_path = f"models/model_test_philipp_GAN_epoch_10.pt"
-
-        # Initialize the generator
-        generator = Generator(dim_latent, featureCount, class_count, dim_embedding)
-        generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
-        generator.to(device)
-        generator.eval()
-#
-        # Generate the data
-        with torch.no_grad():
-            training_labels = np.tile(np.array(range(class_count)), number_of_profiles)
-            noise = torch.randn(len(training_labels), dim_latent, device=device)
-            labels = torch.tensor(training_labels, device=device)  # Example: Random labels
-            generated_samples = generator(noise, labels).detach().cpu().numpy()
-
-        # Store or process the generated data
-        generated_data[epoch] = generated_samples
-
-    return generated_data
+def generate_data_from_saved_model(
+        model_path,
+        dim_latent,
+        featureCount,
+        class_count,
+        dim_embedding,
+        number_of_profiles: int,
+        device='cpu'
+):
+    # Initialize the generator
+    generator = Generator(dim_latent, featureCount, class_count, dim_embedding)
+    generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
+    generator.to(device)
+    generator.eval()
+    # Generate the data
+    with torch.no_grad():
+        training_labels = np.tile(np.array(range(class_count)), number_of_profiles)
+        noise = torch.randn(len(training_labels), dim_latent, device=device)
+        labels = torch.tensor(training_labels, device=device)  # Example: Random labels
+        generated_samples = generator(noise, labels).detach().cpu().numpy()
+    return generated_samples
 
 if __name__ == "__main__":
-    generate_data_from_saved_models(start_epoch=10, end_epoch=10,
-                                    epoch_interval=1,
-                                    dim_latent=10,
-                                    featureCount=24,
-                                    class_count=395,
-                                    dim_embedding=100,
-                                    number_of_profiles=10,
-                                    device='cpu'
-                                    )
+    generate_data_from_saved_model(
+        model_path=f"models/model_test_philipp_GAN_epoch_10.pt",
+        dim_latent=10,
+        featureCount=24,
+        class_count=395,
+        dim_embedding=100,
+        number_of_profiles=10,
+        device='cpu'
+    )

@@ -110,7 +110,16 @@ def create_training_data(all_profiles: pd.DataFrame, labels: list):
     return df_training
 
 
-def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: str, dim_emmbedded=1000, ):
+def train_gan(password_,
+              number_of_profiles,
+              clusterLabel: int,
+              label_csv_filename: str = 'DBSCAN_15_clusters_labels.csv',
+              dim_emmbedded=1000,
+              dimLatent=100,
+              epochCount=500,
+              lr=1e-5,
+              maxNorm=1e6,
+              ):
     # Data import
     GAN_data_path = Path().absolute().parent / 'GAN_data'
     # all load profiles:
@@ -118,7 +127,7 @@ def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: s
 
     # filter the total amount of profiles:
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
-                                     filepath=GAN_data_path / 'DBSCAN_15_clusters_labels.csv',
+                                     filepath=GAN_data_path / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
 
@@ -139,15 +148,10 @@ def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: s
         print('CPU is used.')
 
     batchSize = int(training_samples.shape[0] / number_of_profiles)
-    dimLatent = 10
     featureCount = training_samples.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
-    classCount = len(set(training_labels))  # labels bzw anzahl der Tage times number of load profiles
-    lr = 1e-5
-    maxNorm = 1e6
-    epochCount = 10
+    classCount = len(set(training_labels))  # labels bzw anzahl der Tage times number of load profile
     # testLabel = 0
     model_name = 'model_test_philipp'
-
     model = GAN(
         name=model_name,
         device=device,
@@ -165,25 +169,8 @@ def main(password_, number_of_profiles, clusterLabel: int, label_csv_filename: s
     )
 
     model.train()
-
     # Save model
-    print(f"Training {model.name} done""")
-    print("saving model ...")
-    # torch.save(model, f'models/{model.name}.pt')
-    print(f"model {model.name} saved")
-
-
-def load_model(model_name="model_test_andi"):
-    import torch
-    import GAN
-    model = torch.load(f"models/{model_name}.pt")
-    array = model.generate_sample()
-    df_synthProfiles = df_profiles.copy()
-    df_synthProfiles[::] = array
-    df2 = df_synthProfiles.reset_index().melt(id_vars=["date", "profile"]).pivot_table(values="value",
-                                                                                       columns="profile", index=["date",
-                                                                                                                 "hour of the day"])
-    df2.to_csv(f"{model_name}_synthetic.csv")
+    print(f"Training {model.file_name} done""")
 
 
 if __name__ == "__main__":
@@ -200,15 +187,21 @@ if __name__ == "__main__":
 
     cluster_label = 1
 
-    dim_embed = 100
     pid = (os.getpid())
     print(pid)
 
-    main(password_=password,
-         number_of_profiles=10,
-         dim_emmbedded=dim_embed,
-         clusterLabel=0,
-         label_csv_filename="DBSCAN_15_clusters_labels.csv")
+
+    train_gan(
+        password_=password,
+        number_of_profiles=30,
+        clusterLabel=0,
+        label_csv_filename="DBSCAN_15_clusters_labels.csv",
+        dim_emmbedded=1000,  # dimesion vom embedding tensor
+        dimLatent=100,  # spalten vom noise vektor
+        epochCount=100,
+        lr=1e-5,
+        maxNorm=1e6,
+    )
     torch.cuda.empty_cache()
 
 os.kill(pid, signal.SIGTERM)
