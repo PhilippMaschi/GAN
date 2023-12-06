@@ -132,28 +132,23 @@ def train_gan(password_,
     print(f"number of profiles: {len(labels)}")
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
 
-    df_shape = train_df.melt(id_vars=train_df.columns[:12], value_vars=train_df.columns[12:],
+    m_unique = training_df["month of the year"].unique()
+    training_df["month sin"] = training_df["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
+    training_df["month cos"] = training_df["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
+    non_numeric_cols = [col for col in training_df.columns if not is_number(col)]
+    numeric_cols = [col for col in training_df.columns if is_number(col)]
+    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols], value_vars=training_df[numeric_cols],
                              var_name='profile')
-    df_shape = df_shape.pivot_table(values='value', index=['date', 'profile'],
+
+    df_pivot = df_shape.pivot_table(values=['value'], index=['date', 'profile', "month sin", "month cos", "day off",],
                                     columns='hour of the day')
 
+    target = df_pivot.values
+    features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
+                         df_pivot.index.get_level_values("month cos").to_numpy(),
+                         df_pivot.index.get_level_values("day off").to_numpy()]).T
 
 
-    m_unique = training_df["month of the year"].unique()
-    arr = np.zeros(24+3,)
-    for i, group in training_df.groupby(training_df.index.date):
-        vals = group[labels].values
-        m = list(set(group["month of the year"]))[0]
-        month_sin, month_cos = np.sin(m * (2 * np.pi / len(m_unique))), np.cos(m * (2 * np.pi / len(m_unique)))
-        m_sin = np.full(shape=(vals.shape[1],), fill_value=month_sin)
-        m_cos = np.full(shape=(vals.shape[1],), fill_value=month_cos)
-        d_of = np.full(shape=(vals.shape[1],), fill_value=list(set(group["day off"])))
-
-        # ACHTUNG!! DIE transformierten müssen zuerst rein (im GAN ist die reihenfolge wichtig bei fake labels.
-        row = np.vstack([vals, m_sin, m_cos, d_of])
-        arr = np.vstack([arr, row.T])
-    arr = arr[1:, :]  # delete the 0 row
-    target, features = arr[:, :24], arr[:, 24:]
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
