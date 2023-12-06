@@ -19,7 +19,7 @@ from datetime import date
 
 from data_manip import remove_incomplete_days
 from preproc import import_and_preprocess_data, create_and_add_datetime_features
-from GAN_Philipp import GAN
+from GAN_Philipp import GAN, MyDataset
 from visualization_script import small_analysis
 from plot import plot_losses
 from plot import plot_synthetic_vs_real_samples
@@ -99,23 +99,23 @@ def create_training_data(all_profiles: pd.DataFrame, labels: list):
     # filter the total amount of profiles:
     meta_data_cols = [col for col in all_profiles.columns if not is_number(col)]
     df_profiles = all_profiles[meta_data_cols + labels]
+    return df_profiles
 
-    df_melted = df_profiles.melt(id_vars=df_profiles[meta_data_cols],
-                                 value_vars=df_profiles[labels],
-                                 var_name='profile')
-    # Rows: 1 entry for each day and profile, columns: hour of day
-    df_training = df_melted.pivot_table(values='value',
-                                        index=['profile', 'date'],
-                                        columns='hour of the day')
-    return df_training
+    # df_melted = df_profiles.melt(id_vars=df_profiles[meta_data_cols],
+    #                              value_vars=df_profiles[labels],
+    #                              var_name='profile')
+    # # Rows: 1 entry for each day and profile, columns: hour of day
+    # df_training = df_melted.pivot_table(values='value',
+    #                                     index=['profile', 'date'],
+    #                                     columns='hour of the day')
+    # return df_training
 
 
 def train_gan(password_,
               number_of_profiles,
               clusterLabel: int,
+              dimNoise: int,
               label_csv_filename: str = 'DBSCAN_15_clusters_labels.csv',
-              dim_emmbedded=1000,
-              dimLatent=100,
               epochCount=500,
               lr=1e-5,
               maxNorm=1e6,
@@ -132,24 +132,23 @@ def train_gan(password_,
                                      filepath=GAN_data_path / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
+    training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
+    m_unique = training_df["month of the year"].unique()
+    arr = np.zeros(24+3,)
+    for i, group in training_df.groupby(training_df.index.date):
+        vals = group[labels].values
+        m = list(set(group["month of the year"]))[0]
+        month_sin, month_cos = np.sin(m * (2 * np.pi / len(m_unique))), np.cos(m * (2 * np.pi / len(m_unique)))
+        m_sin = np.full(shape=(vals.shape[1],), fill_value=month_sin)
+        m_cos = np.full(shape=(vals.shape[1],), fill_value=month_cos)
+        d_of = np.full(shape=(vals.shape[1],), fill_value=list(set(group["day off"])))
 
+        # ACHTUNG!! DIE transformierten müssen zuerst rein (im GAN ist die reihenfolge wichtig bei fake labels.
+        row = np.vstack([vals, m_sin, m_cos, d_of])
+        arr = np.vstack([arr, row.T])
+    arr = arr[1:, :]  # delete the 0 row
 
-    arr = np.zeros(24+1,)
-    for name, group in df_loadProfiles.groupby("month"):
-        vals = group.values.flatten()
-        month = list(set(group["month"]))
-
-        row = np.hstack([vals, month])
-        arr = np.vstack([arr, row])
-    target, fts = arr[:, :24], arr[:, 24]
-
-    training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels)
-    print(f"Shape training data: {training_df.shape} ")
-
-    # Create and scale samples and labels
-    training_samples = training_df.to_numpy().astype("f4")
-    # each day gets the same label without considering which profile
-    training_labels = np.tile(np.array(range(395)), number_of_profiles)
+    target, features = arr[:, :24], arr[:, 24:]
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -159,25 +158,24 @@ def train_gan(password_,
         device = torch.device('cpu')
         print('CPU is used.')
 
-    batchSize = int(training_samples.shape[0] / number_of_profiles)
-    featureCount = training_samples.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
-    classCount = len(set(training_labels))  # labels bzw anzahl der Tage times number of load profile
+    batchSize = int(target.shape[0] / number_of_profiles)
+    featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
     model_name = 'model_test_philipp'
     model = GAN(
         name=model_name,
         device=device,
         batchSize=batchSize,
-        samples=training_samples,
-        labels=training_labels,
-        dimLatent=dimLatent,
+        target=target,
+        features=features,
+        dimNoise=dimNoise,
         featureCount=featureCount,
-        classCount=classCount,
-        dimEmbedding=dim_emmbedded,
         lr=lr,
         maxNorm=maxNorm,
         epochCount=epochCount,
-        # testLabel = testLabel
+        # testLabel = testLabel,
+        n_transformed_features=2,
+        n_number_features=1,
     )
 
     model.train()
@@ -205,12 +203,11 @@ if __name__ == "__main__":
 
     train_gan(
         password_=password,
-        number_of_profiles=30,
+        number_of_profiles=2,
         clusterLabel=0,
+        dimNoise=50,
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
-        dim_emmbedded=1000,  # dimesion vom embedding tensor
-        dimLatent=100,  # spalten vom noise vektor
-        epochCount=100,
+        epochCount=500,
         lr=1e-5,
         maxNorm=1e6,
     )
