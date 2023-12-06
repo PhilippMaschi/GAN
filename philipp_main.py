@@ -137,18 +137,18 @@ def train_gan(password_,
     training_df["month cos"] = training_df["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
     non_numeric_cols = [col for col in training_df.columns if not is_number(col)]
     numeric_cols = [col for col in training_df.columns if is_number(col)]
-    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols], value_vars=training_df[numeric_cols],
-                             var_name='profile')
+    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols],
+                                value_vars=training_df[numeric_cols],
+                                var_name='profile')
 
-    df_pivot = df_shape.pivot_table(values=['value'], index=['date', 'profile', "month sin", "month cos", "day off",],
+    df_pivot = df_shape.pivot_table(values='value',
+                                    index=['date', 'profile', "month sin", "month cos", "day off"],
                                     columns='hour of the day')
 
     target = df_pivot.values
     features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
-                         df_pivot.index.get_level_values("month cos").to_numpy(),
-                         df_pivot.index.get_level_values("day off").to_numpy()]).T
-
-
+                          df_pivot.index.get_level_values("month cos").to_numpy(),
+                          df_pivot.index.get_level_values("day off").to_numpy()]).T
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -181,7 +181,7 @@ def train_gan(password_,
     model.train()
     # Save model
     print(f"Training {model.folder_name} done""")
-    return training_df, model.folder_name, target, features
+    return training_df, model.folder_name, df_pivot, features
 
 
 if __name__ == "__main__":
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     print(pid)
     noise_dimension = 50
     n_profiles = 2
-    train_df, model_folder_name, orig_target, orig_features = train_gan(
+    train_df, model_folder_name, df_pivot, orig_features = train_gan(
         password_=password,
         number_of_profiles=n_profiles,
         clusterLabel=0,
@@ -227,15 +227,18 @@ if __name__ == "__main__":
             original_features=orig_features,
             device='cpu',
         )
-        df_shape = train_df.melt(id_vars=train_df.columns[:12], value_vars=train_df.columns[12:],
-                                    var_name='profile')
-        df_shape = df_shape.pivot_table(values='value', index=['date', 'profile'], columns='hour of the day')
+        df_synthProfiles = df_pivot.copy()
+        df_synthProfiles[::] = synthetic_data
+        df_synthetic = df_synthProfiles.reset_index()
+
+        df_synthetic = df_synthetic.melt(
+            id_vars=['date', 'profile', "month sin", "month cos", "day off"],
+            var_name="hour of the day",
+            value_name="value")
 
 
 
         plot_seasonal_daily_means(df_real=train_df, df_synthetic=synthetic_data)
-
-
 
 os.kill(pid, signal.SIGTERM)
 sys.exit()
