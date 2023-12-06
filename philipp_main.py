@@ -19,8 +19,8 @@ from datetime import date
 
 from data_manip import remove_incomplete_days
 from preproc import import_and_preprocess_data, create_and_add_datetime_features
-from GAN_Philipp import GAN, MyDataset
-from visualization_script import small_analysis
+from GAN_Philipp import GAN, generate_data_from_saved_model
+from visualization_script import plot_seasonal_daily_means, compare_peak_and_mean, plot_pca_analysis
 from plot import plot_losses
 from plot import plot_synthetic_vs_real_samples
 import argparse
@@ -125,14 +125,20 @@ def train_gan(password_,
     # all load profiles:
     df_loadProfiles = crp.read_encrypted(path=os.path.join(GAN_data_path, 'all_profiles.crypt'), password=password_)
 
-
-
     # filter the total amount of profiles:
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
                                      filepath=GAN_data_path / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
+
+    df_shape = train_df.melt(id_vars=train_df.columns[:12], value_vars=train_df.columns[12:],
+                             var_name='profile')
+    df_shape = df_shape.pivot_table(values='value', index=['date', 'profile'],
+                                    columns='hour of the day')
+
+
+
     m_unique = training_df["month of the year"].unique()
     arr = np.zeros(24+3,)
     for i, group in training_df.groupby(training_df.index.date):
@@ -147,7 +153,6 @@ def train_gan(password_,
         row = np.vstack([vals, m_sin, m_cos, d_of])
         arr = np.vstack([arr, row.T])
     arr = arr[1:, :]  # delete the 0 row
-
     target, features = arr[:, :24], arr[:, 24:]
 
     # Configure GAN
@@ -180,7 +185,8 @@ def train_gan(password_,
 
     model.train()
     # Save model
-    print(f"Training {model.file_name} done""")
+    print(f"Training {model.folder_name} done""")
+    return training_df, model.folder_name, target, features
 
 
 if __name__ == "__main__":
@@ -199,19 +205,42 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-
-
-    train_gan(
+    noise_dimension = 50
+    n_profiles = 2
+    train_df, model_folder_name, orig_target, orig_features = train_gan(
         password_=password,
-        number_of_profiles=2,
+        number_of_profiles=n_profiles,
         clusterLabel=0,
-        dimNoise=50,
+        dimNoise=noise_dimension,
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
         epochCount=500,
         lr=1e-5,
         maxNorm=1e6,
     )
     torch.cuda.empty_cache()
+
+    # visualize the training results:
+    file_names = [file.name for file in Path(model_folder_name).iterdir() if file.is_file()]
+    file_names.sort()
+    for model in file_names:
+        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
+        synthetic_data = generate_data_from_saved_model(
+            model_path=f"{model_folder_name}/{model}",
+            noise_dim=noise_dimension,
+            featureCount=3,  # depends on the features selected in train_gan -> automate
+            targetCount=24,
+            original_features=orig_features,
+            device='cpu',
+        )
+        df_shape = train_df.melt(id_vars=train_df.columns[:12], value_vars=train_df.columns[12:],
+                                    var_name='profile')
+        df_shape = df_shape.pivot_table(values='value', index=['date', 'profile'], columns='hour of the day')
+
+
+
+        plot_seasonal_daily_means(df_real=train_df, df_synthetic=synthetic_data)
+
+
 
 os.kill(pid, signal.SIGTERM)
 sys.exit()

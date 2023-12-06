@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from time import perf_counter
+from pathlib import Path
 
 
 # import pytorch.lightning
@@ -122,9 +123,10 @@ class GAN(object):
         self.epochCount = epochCount
         self.testLabel = testLabel
         self.exampleCount = exampleCount
-        self.file_name = f"{self.name}_" \
+        self.folder_name = f"models/{self.name}_" \
                          f"batchSize={self.batchSize}_" \
                          f"featureCount={self.featureCount}"
+        Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         self.n_transformed_features = n_transformed_features
         self.n_number_features = n_number_features
 
@@ -163,10 +165,10 @@ class GAN(object):
                 'generator gradient norm'
             ])
         self.iterCount = 0
-        if isinstance(self.testLabel, int):
-            self.noiseFixed = randn(self.exampleCount, self.dimLatent, device=device)
-            self.labelsFixed = full(size=(self.exampleCount,), fill_value=self.testLabel, device=self.device,
-                                    dtype=torch.int32)
+        # if isinstance(self.testLabel, int):
+        #     self.noiseFixed = randn(self.exampleCount, self.dimLatent, device=device)
+        #     self.labelsFixed = full(size=(self.exampleCount,), fill_value=self.testLabel, device=self.device,
+        #                             dtype=torch.int32)
 
     def __labels__(self):
         return self.features
@@ -244,7 +246,7 @@ class GAN(object):
 
                 # save the model state every 500 epochs:
                 if (epoch + 1) % 100 == 0:
-                    self.save_model_state(f"models/{self.file_name}_epoch={epoch + 1}.pt", epoch)
+                    self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
                 # Log the progress
                 tstamp_4 = perf_counter()
@@ -291,23 +293,21 @@ class GAN(object):
 
 def generate_data_from_saved_model(
         model_path,
-        dim_latent,
-        featureCount,
-        class_count,
-        dim_embedding,
-        number_of_profiles: int,
+        noise_dim: int,
+        featureCount: int,  # number of features that are added to noise vector
+        targetCount: int,  # 24
+        original_features: np.array,
         device='cpu'
 ):
     # Initialize the generator
-    generator = Generator(dim_latent, featureCount, class_count, dim_embedding)
+    generator = Generator(noise_dim, featureCount, targetCount)
     generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
     generator.to(device)
     generator.eval()
     # Generate the data
     with torch.no_grad():
-        training_labels = np.tile(np.array(range(class_count)), number_of_profiles)
-        noise = torch.randn(len(training_labels), dim_latent, device=device)
-        labels = torch.tensor(training_labels, device=device)  # Example: Random labels
+        noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
+        labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
         generated_samples = generator(noise, labels).detach().cpu().numpy()
     return generated_samples
 
@@ -315,10 +315,9 @@ def generate_data_from_saved_model(
 if __name__ == "__main__":
     generate_data_from_saved_model(
         model_path=f"models/model_test_philipp_GAN_epoch_10.pt",
-        dim_latent=10,
-        featureCount=24,
-        class_count=395,
-        dim_embedding=100,
-        number_of_profiles=10,
+        noise_dim=10,
+        featureCount=3,
+        targetCount=24,
+        original_features=None,
         device='cpu'
     )
