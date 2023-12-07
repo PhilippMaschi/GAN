@@ -127,6 +127,9 @@ class GAN(object):
                            f"batchSize={self.batchSize}_" \
                            f"featureCount={self.featureCount}"
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
+        # if there is files in this folder, delete them
+        for file in Path(self.folder_name).iterdir():
+            file.unlink()
         self.n_transformed_features = n_transformed_features
         self.n_number_features = n_number_features
 
@@ -248,7 +251,7 @@ class GAN(object):
                 # print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 100 == 0:
+                if (epoch + 1) % 500 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
                 # Log the progress
@@ -304,10 +307,11 @@ def generate_data_from_saved_model(
 ):
     # Initialize the generator
     generator = Generator(noise_dim, featureCount, targetCount)
-    generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
+    checkpoint = torch.load(model_path)
+    generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
     generator.eval()
-    scaler = torch.load(model_path)["scaler"]
+    scaler = checkpoint["scaler"]
     # Generate the data
     with torch.no_grad():
         noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)

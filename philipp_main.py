@@ -101,34 +101,25 @@ def create_training_data(all_profiles: pd.DataFrame, labels: list):
     df_profiles = all_profiles[meta_data_cols + labels]
     return df_profiles
 
-    # df_melted = df_profiles.melt(id_vars=df_profiles[meta_data_cols],
-    #                              value_vars=df_profiles[labels],
-    #                              var_name='profile')
-    # # Rows: 1 entry for each day and profile, columns: hour of day
-    # df_training = df_melted.pivot_table(values='value',
-    #                                     index=['profile', 'date'],
-    #                                     columns='hour of the day')
-    # return df_training
 
-
-def create_numpy_matrix_for_gan(training_df: pd.DataFrame) -> (np.array, np.array, pd.DataFrame):
+def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, pd.DataFrame):
     """
 
     Args:
-        training_df:
+        df_train:
 
     Returns: target and features and df_hull which is a df which contains the orig index for reshaping the generated
     data later
 
     """
-    m_unique = training_df["month of the year"].unique()
-    training_df["month sin"] = training_df["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
-    training_df["month cos"] = training_df["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
-    non_numeric_cols = [col for col in training_df.columns if not is_number(col)]
-    numeric_cols = [col for col in training_df.columns if is_number(col)]
-    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols],
-                                value_vars=training_df[numeric_cols],
-                                var_name='profile')
+    m_unique = df_train["month of the year"].unique()
+    df_train["month sin"] = df_train["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
+    df_train["month cos"] = df_train["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
+    non_numeric_cols = [col for col in df_train.columns if not is_number(col)]
+    numeric_cols = [col for col in df_train.columns if is_number(col)]
+    df_shape = df_train.melt(id_vars=df_train[non_numeric_cols],
+                             value_vars=df_train[numeric_cols],
+                             var_name='profile')
 
     df_pivot = df_shape.pivot_table(values='value',
                                     index=['date', 'profile', "month sin", "month cos", "day off"],
@@ -141,6 +132,7 @@ def create_numpy_matrix_for_gan(training_df: pd.DataFrame) -> (np.array, np.arra
     features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
                           df_pivot.index.get_level_values("month cos").to_numpy(),
                           df_pivot.index.get_level_values("day off").to_numpy()]).T
+    del df_train
     return target, features, df_hull
 
 
@@ -155,20 +147,17 @@ def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_dat
     df_pivot = df_synthetic.pivot_table(values='value',
                                         index=['date', "month sin", "month cos", "day off", "hour of the day"],
                                         columns='profile').reset_index()
-    final = pd.concat([original_meta_data, df_pivot[[col for col in df_pivot.columns if is_number(col)]]], axis=1)
+    final = pd.concat([original_meta_data.reset_index(), df_pivot[[col for col in df_pivot.columns if is_number(col)]]],
+                      axis=1)
 
     return final
 
 
-def train_gan(password_,
-              number_of_profiles,
-              clusterLabel: int,
-              dimNoise: int,
-              label_csv_filename: str = 'DBSCAN_15_clusters_labels.csv',
-              epochCount=500,
-              lr=1e-5,
-              maxNorm=1e6,
-              ):
+def create_training_dataframe(password_,
+                              clusterLabel: int,
+                              number_of_profiles: int,
+                              label_csv_filename: str = 'DBSCAN_15_clusters_labels.csv',
+                              ) -> pd.DataFrame:
     # Data import
     GAN_data_path = Path().absolute().parent / 'GAN_data'
     # all load profiles:
@@ -180,8 +169,21 @@ def train_gan(password_,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
+
+    return training_df
+
+
+def train_gan(
+        batchSize: int,
+        dimNoise: int,
+        training_df: pd.DataFrame,
+        epochCount=500,
+        lr=1e-5,
+        maxNorm=1e6,
+        ):
+
     # create np array with target and features
-    target, features, df_hull = create_numpy_matrix_for_gan(training_df)
+    target, features, df_hull = create_numpy_matrix_for_gan(training_df.copy())
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -191,7 +193,6 @@ def train_gan(password_,
         device = torch.device('cpu')
         print('CPU is used.')
 
-    batchSize = int(target.shape[0] / number_of_profiles)
     featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
     model_name = 'model_test_philipp'
@@ -217,14 +218,13 @@ def train_gan(password_,
     # save the original features to a npz file so it can be used for generating data later:
     np.save(file=Path(model.folder_name) / "original_features.npy", arr=features)
     # save the original metadata:
-    df_loadProfiles[[col for col in df_loadProfiles.columns if not is_number(col)]].to_parquet(
-        Path(model.folder_name) / "meta_data.parquet.gzip"
-    )
+    orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
+    orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
     print(f"Training {model.folder_name} done""")
-    return training_df, model.folder_name
+    return model.folder_name
 
 
-def visualize_results_from_model_folder(folder_path):
+def visualize_results_from_model_folder(folder_path, noise_dimension, device):
     # visualize the training results:
     file_names = [file.name for file in Path(folder_path).glob("*.pt")]
     file_names.sort()
@@ -240,7 +240,7 @@ def visualize_results_from_model_folder(folder_path):
             featureCount=3,  # depends on the features selected in train_gan -> automate
             targetCount=24,
             original_features=orig_features,
-            device='cpu',
+            device=device,
         )
 
         df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
@@ -265,25 +265,31 @@ if __name__ == "__main__":
         print("No password given. Exit now.")
         sys.exit()
 
-    cluster_label = 1
-
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 2
-    train_df, model_folder = train_gan(
+    n_profiles = 10
+    cluster_label = 0
+    train_df = create_training_dataframe(
         password_=password,
+        clusterLabel=cluster_label,
         number_of_profiles=n_profiles,
-        clusterLabel=0,
-        dimNoise=noise_dimension,
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
-        epochCount=500,
-        lr=1e-5,
-        maxNorm=1e6,
+    )
+
+    model_folder = train_gan(
+         batchSize=395,
+         dimNoise=noise_dimension,
+         training_df=train_df,
+         epochCount=1_000,
+         lr=1e-5,
+         maxNorm=1e6,
     )
     torch.cuda.empty_cache()
 
-    visualize_results_from_model_folder(folder_path=model_folder)
+    visualize_results_from_model_folder(folder_path=model_folder,
+                                        noise_dimension=noise_dimension,
+                                        device="cuda:0")
 
 os.kill(pid, signal.SIGTERM)
 sys.exit()
