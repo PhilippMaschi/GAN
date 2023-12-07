@@ -39,7 +39,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.model = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=noise_dim+feature_dim, out_features=noise_dim * 8),
+            nn.Linear(in_features=noise_dim + feature_dim, out_features=noise_dim * 8),
             nn.LeakyReLU(inplace=True),
             # 2nd layer
             nn.Dropout(0.2),
@@ -124,8 +124,8 @@ class GAN(object):
         self.testLabel = testLabel
         self.exampleCount = exampleCount
         self.folder_name = f"models/{self.name}_" \
-                         f"batchSize={self.batchSize}_" \
-                         f"featureCount={self.featureCount}"
+                           f"batchSize={self.batchSize}_" \
+                           f"featureCount={self.featureCount}"
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         self.n_transformed_features = n_transformed_features
         self.n_number_features = n_number_features
@@ -139,7 +139,8 @@ class GAN(object):
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
 
         # Initialize generator
-        self.Gen = Generator(self.dimNoise, self.featureCount, self.target.shape[1])  # input is noise + labels (dimLatent) and output is 24 (target shape)
+        self.Gen = Generator(self.dimNoise, self.featureCount, self.target.shape[
+            1])  # input is noise + labels (dimLatent) and output is 24 (target shape)
         self.Gen.to(self.device)
 
         # Initialize discriminator
@@ -176,6 +177,7 @@ class GAN(object):
     def save_model_state(self, checkpoint_path, epoch):
         torch.save({
             "epoch": epoch,
+            "scaler": self.scaler,
             'generator_state_dict': self.Gen.state_dict(),
             'discriminator_state_dict': self.Dis.state_dict(),
             'optimizer_gen_state_dict': self.optimGen.state_dict(),
@@ -216,7 +218,8 @@ class GAN(object):
                 noise = randn(target_to.shape[0], self.dimNoise, device=self.device)
                 # random labels needed in addition to the noise
                 first_columns = torch.rand(feature_to.shape[0], self.n_transformed_features, device=self.device) * 2 - 1
-                second_columns = torch.randint(0, 2, (feature_to.shape[0], self.n_number_features), device=self.device, dtype=torch.float32)
+                second_columns = torch.randint(0, 2, (feature_to.shape[0], self.n_number_features), device=self.device,
+                                               dtype=torch.float32)
                 randomLabelFake = torch.cat((first_columns, second_columns), dim=1)
                 # a tensor containing only zeros
                 labelFake = full(size=(target_to.size(0), 1), fill_value=0, device=self.device, dtype=torch.float32)
@@ -304,12 +307,14 @@ def generate_data_from_saved_model(
     generator.load_state_dict(torch.load(model_path)['generator_state_dict'])
     generator.to(device)
     generator.eval()
+    scaler = torch.load(model_path)["scaler"]
     # Generate the data
     with torch.no_grad():
         noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
         labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
         generated_samples = generator(noise, labels).detach().cpu().numpy()
-    return generated_samples
+        scaled_samples = scaler.inverse_transform(generated_samples.T).T
+    return scaled_samples
 
 
 if __name__ == "__main__":

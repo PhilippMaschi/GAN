@@ -111,6 +111,55 @@ def create_training_data(all_profiles: pd.DataFrame, labels: list):
     # return df_training
 
 
+def create_numpy_matrix_for_gan(training_df: pd.DataFrame) -> (np.array, np.array, pd.DataFrame):
+    """
+
+    Args:
+        training_df:
+
+    Returns: target and features and df_hull which is a df which contains the orig index for reshaping the generated
+    data later
+
+    """
+    m_unique = training_df["month of the year"].unique()
+    training_df["month sin"] = training_df["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
+    training_df["month cos"] = training_df["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
+    non_numeric_cols = [col for col in training_df.columns if not is_number(col)]
+    numeric_cols = [col for col in training_df.columns if is_number(col)]
+    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols],
+                                value_vars=training_df[numeric_cols],
+                                var_name='profile')
+
+    df_pivot = df_shape.pivot_table(values='value',
+                                    index=['date', 'profile', "month sin", "month cos", "day off"],
+                                    columns='hour of the day')
+    # create a shape of the df_pivot that is needed to reshape the generated data from the GAN later
+    df_hull = df_pivot.copy()
+    df_hull[::] = np.zeros(df_hull.shape)
+
+    target = df_pivot.values
+    features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
+                          df_pivot.index.get_level_values("month cos").to_numpy(),
+                          df_pivot.index.get_level_values("day off").to_numpy()]).T
+    return target, features, df_hull
+
+
+def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_data: np.array, original_meta_data):
+    hull[::] = synthetic_data
+    synthetic = hull.reset_index()
+    # todo the month sin etc. as list to this function dependent on the model so this is automated for other variables
+    df_synthetic = synthetic.melt(
+        id_vars=['date', 'profile', "month sin", "month cos", "day off"],
+        var_name="hour of the day",
+        value_name="value")
+    df_pivot = df_synthetic.pivot_table(values='value',
+                                        index=['date', "month sin", "month cos", "day off", "hour of the day"],
+                                        columns='profile').reset_index()
+    final = pd.concat([original_meta_data, df_pivot[[col for col in df_pivot.columns if is_number(col)]]], axis=1)
+
+    return final
+
+
 def train_gan(password_,
               number_of_profiles,
               clusterLabel: int,
@@ -131,24 +180,8 @@ def train_gan(password_,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
-
-    m_unique = training_df["month of the year"].unique()
-    training_df["month sin"] = training_df["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
-    training_df["month cos"] = training_df["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
-    non_numeric_cols = [col for col in training_df.columns if not is_number(col)]
-    numeric_cols = [col for col in training_df.columns if is_number(col)]
-    df_shape = training_df.melt(id_vars=training_df[non_numeric_cols],
-                                value_vars=training_df[numeric_cols],
-                                var_name='profile')
-
-    df_pivot = df_shape.pivot_table(values='value',
-                                    index=['date', 'profile', "month sin", "month cos", "day off"],
-                                    columns='hour of the day')
-
-    target = df_pivot.values
-    features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
-                          df_pivot.index.get_level_values("month cos").to_numpy(),
-                          df_pivot.index.get_level_values("day off").to_numpy()]).T
+    # create np array with target and features
+    target, features, df_hull = create_numpy_matrix_for_gan(training_df)
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -179,9 +212,45 @@ def train_gan(password_,
     )
 
     model.train()
-    # Save model
+    # save df_hull to the model folder so the generated data can be easily reshaped:
+    df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
+    # save the original features to a npz file so it can be used for generating data later:
+    np.save(file=Path(model.folder_name) / "original_features.npy", arr=features)
+    # save the original metadata:
+    df_loadProfiles[[col for col in df_loadProfiles.columns if not is_number(col)]].to_parquet(
+        Path(model.folder_name) / "meta_data.parquet.gzip"
+    )
     print(f"Training {model.folder_name} done""")
-    return training_df, model.folder_name, df_pivot, features
+    return training_df, model.folder_name
+
+
+def visualize_results_from_model_folder(folder_path):
+    # visualize the training results:
+    file_names = [file.name for file in Path(folder_path).glob("*.pt")]
+    file_names.sort()
+
+    orig_features = np.load(Path(folder_path) / "original_features.npy")
+    hull = pd.read_parquet(Path(folder_path) / "hull.parquet.gzip")
+    orig_meta_data = pd.read_parquet(Path(folder_path) / "meta_data.parquet.gzip")
+    for model in file_names:
+        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
+        synthetic_data = generate_data_from_saved_model(
+            model_path=f"{folder_path}/{model}",
+            noise_dim=noise_dimension,
+            featureCount=3,  # depends on the features selected in train_gan -> automate
+            targetCount=24,
+            original_features=orig_features,
+            device='cpu',
+        )
+
+        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
+                                                                  synthetic_data=synthetic_data,
+                                                                  original_meta_data=orig_meta_data)
+
+        plot_seasonal_daily_means(df_real=train_df,
+                                  df_synthetic=df_synthetic,
+                                  output_path=Path(r"plots"),
+                                  epoch_number=epoch)
 
 
 if __name__ == "__main__":
@@ -202,7 +271,7 @@ if __name__ == "__main__":
     print(pid)
     noise_dimension = 50
     n_profiles = 2
-    train_df, model_folder_name, df_pivot, orig_features = train_gan(
+    train_df, model_folder = train_gan(
         password_=password,
         number_of_profiles=n_profiles,
         clusterLabel=0,
@@ -214,31 +283,7 @@ if __name__ == "__main__":
     )
     torch.cuda.empty_cache()
 
-    # visualize the training results:
-    file_names = [file.name for file in Path(model_folder_name).iterdir() if file.is_file()]
-    file_names.sort()
-    for model in file_names:
-        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
-        synthetic_data = generate_data_from_saved_model(
-            model_path=f"{model_folder_name}/{model}",
-            noise_dim=noise_dimension,
-            featureCount=3,  # depends on the features selected in train_gan -> automate
-            targetCount=24,
-            original_features=orig_features,
-            device='cpu',
-        )
-        df_synthProfiles = df_pivot.copy()
-        df_synthProfiles[::] = synthetic_data
-        df_synthetic = df_synthProfiles.reset_index()
-
-        df_synthetic = df_synthetic.melt(
-            id_vars=['date', 'profile', "month sin", "month cos", "day off"],
-            var_name="hour of the day",
-            value_name="value")
-
-
-
-        plot_seasonal_daily_means(df_real=train_df, df_synthetic=synthetic_data)
+    visualize_results_from_model_folder(folder_path=model_folder)
 
 os.kill(pid, signal.SIGTERM)
 sys.exit()

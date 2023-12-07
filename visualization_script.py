@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import cryptpandas as crp
@@ -132,7 +134,9 @@ def is_number(s):
 
 def plot_seasonal_daily_means(df_real: pd.DataFrame,
                               df_synthetic: pd.DataFrame,
-                              output_path: Path):
+                              output_path: Path,
+                              epoch_number: int
+                              ):
     numeric_cols = [col for col in df_real.columns if is_number(col)]
     # add seasons to df:
     season_groups_real = df_real.groupby("meteorological season")
@@ -186,8 +190,9 @@ def plot_seasonal_daily_means(df_real: pd.DataFrame,
         ax.legend()
         # plt.xticks(range(0, 24))
         # ax.grid(True)
+    plt.title(f"epoch: {epoch_number}")
     plt.tight_layout()
-    fig.savefig(output_path / f"Daily_Mean_Comparison.png")
+    fig.savefig(output_path / f"Daily_Mean_Comparison_{epoch_number}.png")
     plt.show()
     plt.close(fig)
 
