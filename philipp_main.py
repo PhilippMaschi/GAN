@@ -74,7 +74,11 @@ def get_labels_for_cluster(cluster_number: int, filepath: Path) -> pd.DataFrame:
 
 def load_labels_for_cluster(clusterLabel: int, filepath: Path, number_of_profiles: int):
     df_labels = get_labels_for_cluster(cluster_number=clusterLabel, filepath=filepath)
-    labels = df_labels.loc[df_labels['labels'] == clusterLabel, 'name'].to_list()[:number_of_profiles]
+    label_list = df_labels.loc[df_labels['labels'] == clusterLabel, 'name'].to_list()
+    if number_of_profiles is None:
+        labels = label_list
+    else:
+        labels = label_list[:number_of_profiles]
     return labels
 
 
@@ -268,8 +272,9 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 10
+    n_profiles = 100
     cluster_label = 0
+    batchSize = int(395 * n_profiles/10)
     train_df = create_training_dataframe(
         password_=password,
         clusterLabel=cluster_label,
@@ -278,10 +283,10 @@ if __name__ == "__main__":
     )
 
     model_folder = train_gan(
-         batchSize=395,
+         batchSize=batchSize,
          dimNoise=noise_dimension,
          training_df=train_df,
-         epochCount=1_000,
+         epochCount=1_500,
          lr=1e-5,
          maxNorm=1e6,
     )

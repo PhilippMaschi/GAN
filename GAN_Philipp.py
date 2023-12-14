@@ -39,15 +39,15 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.model = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=noise_dim + feature_dim, out_features=noise_dim * 8),
+            nn.Linear(in_features=noise_dim + feature_dim, out_features=noise_dim * 80),
             nn.LeakyReLU(inplace=True),
             # 2nd layer
             nn.Dropout(0.2),
             # 3rd layer
-            nn.Linear(in_features=noise_dim * 8, out_features=128),
+            nn.Linear(in_features=noise_dim * 80, out_features=1000),
             nn.LeakyReLU(inplace=True),
             # 4th layer
-            nn.Linear(in_features=128, out_features=128),
+            nn.Linear(in_features=1000, out_features=128),
             nn.LeakyReLU(inplace=True),
             # 5th layer
             nn.Linear(in_features=128, out_features=128),
@@ -69,15 +69,15 @@ class Discriminator(nn.Module):
         self.targetCount = targetCount
         self.model = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=self.targetCount, out_features=self.targetCount * 4),
+            nn.Linear(in_features=self.targetCount, out_features=self.targetCount * 40),
             nn.LeakyReLU(inplace=True),
             # 2nd layer
             nn.Dropout(0.1),
             # 3rd layer
-            nn.Linear(in_features=self.targetCount * 4, out_features=128),
+            nn.Linear(in_features=self.targetCount * 40, out_features=256),
             nn.LeakyReLU(inplace=True),
             # 4th layer
-            nn.Linear(in_features=128, out_features=128),
+            nn.Linear(in_features=256, out_features=128),
             nn.LeakyReLU(inplace=True),
             # 5th layer
             nn.Linear(in_features=128, out_features=64),
@@ -98,15 +98,15 @@ class GAN(object):
                  name,
                  device,
                  batchSize,
-                 target,
-                 features,
-                 dimNoise,
-                 featureCount,
+                 target,  # train data
+                 features,  # labels
+                 dimNoise,  # noise vector size
+                 featureCount,  # anzahl der features
                  lr,
                  maxNorm,
                  epochCount,
-                 n_transformed_features: int,
-                 n_number_features: int,
+                 n_transformed_features: int,  # anzahl an sin cos transformierten variablen (1 variable wird zu 2 (sin + cos))
+                 n_number_features: int,   # anzahl der features (labels) die nicht transformiert werden
                  testLabel=None,
                  exampleCount=3,
                  ):
@@ -125,7 +125,8 @@ class GAN(object):
         self.exampleCount = exampleCount
         self.folder_name = f"models/{self.name}_" \
                            f"batchSize={self.batchSize}_" \
-                           f"featureCount={self.featureCount}"
+                           f"featureCount={self.featureCount}_" \
+                           f"noise_dim={self.dimNoise}"
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
         for file in Path(self.folder_name).iterdir():
