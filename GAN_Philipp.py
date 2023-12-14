@@ -205,6 +205,11 @@ class GAN(object):
         print(f"loaded model at epoch: {checkpoint['epoch']}")
 
     def train(self):
+        losses_dis_real = []
+        losses_dis_fake = []
+        losses_gen = []
+        grad_norms_dis = []
+        grad_norms_gen = []
         for epoch in tqdm(range(self.epochCount)):
             for batchIdx, (data, label) in enumerate(self.dataLoader):  # target = actual (real) label
                 # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
@@ -213,7 +218,6 @@ class GAN(object):
                 feature_to = label.to(device=self.device, dtype=torch.float32)
 
                 # Train discriminator with real data
-                tstamp_1 = perf_counter()
                 self.Dis.zero_grad()  # set the gradients to zero for every mini-batch
                 # yReal: length as target train discriminator with real data, row vector: number of days x profiles
                 yReal = self.Dis(target_to)
@@ -223,9 +227,7 @@ class GAN(object):
                                  dtype=torch.float32)  # Column vector a tensor containing only ones
                 lossDisReal = self.criterion(yReal, labelReal)  # calculate the loss of Dis : Single number
                 lossDisReal.backward()  # calculate new gradients
-                # print(f'Train discriminator with real data: {perf_counter() - tstamp_1}')
                 # Train discriminator with fake data
-                tstamp_2 = perf_counter()
                 # create a tensor filled with random numbers rows: Number of days, column dimLatent
                 noise = randn(target_to.shape[0], self.dimNoise, device=self.device)
                 # random labels needed in addition to the noise
@@ -245,10 +247,8 @@ class GAN(object):
                 # gradient clipping (large max_norm to avoid actual clipping)
                 grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm=self.maxNorm)
                 self.optimDis.step()  # update the discriminator
-                # print(f'Train discriminator with fake data: {perf_counter() - tstamp_2}')
 
                 # Train generator (now that we fed the discriminator with fake data)
-                tstamp_3 = perf_counter()
                 self.Gen.zero_grad()
                 # let the discriminator label the fake data (now that the discriminator is updated)
                 yFake_2 = self.Dis(xFake)
@@ -257,42 +257,45 @@ class GAN(object):
                 lossGen.backward()
                 grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
                 self.optimGen.step()
-                # print(f'Train generator (now that we fed the discriminator with fake data): {perf_counter() - tstamp_3}')
 
                 # save the model state every 500 epochs:
                 if (epoch + 1) % 500 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
-                # Log the progress
-                tstamp_4 = perf_counter()
-                # self.df_loss.loc[len(self.df_loss)] = [
-                #     epoch,
-                #     batchIdx,
-                #     lossDisReal.detach().cpu().numpy(),
-                #     lossDisFake.detach().cpu().numpy(),
-                #     lossDis.detach().cpu().numpy(),
-                #     lossGen.detach().cpu().numpy(),
-                #     grad_norm_dis.detach().cpu().numpy(),
-                #     grad_norm_gen.detach().cpu().numpy()
-                # ]
-                # if self.iterCount % max(1, int(self.epochCount * len(
-                #         self.dataLoader) / 10)) == 0 or self.iterCount == self.epochCount * len(self.dataLoader) - 1:
-                #     # print(f'training: {int(self.iterCount/(self.epochCount*len(self.dataLoader))*100)} %')
-                #     if isinstance(self.testLabel, int):
-                #         with no_grad():
-                #             xFakeTest = self.Gen(self.noiseFixed, self.labelsFixed)
-                #             yFakeTest = self.Dis(xFakeTest, self.labelsFixed)
-                #             plt.figure(figsize=(4, 3), facecolor='w')
-                #             plt.plot(xFakeTest.detach().cpu().numpy().T)
-                #             plt.title(
-                #                 f'labels: {self.labelsFixed.cpu().numpy()}\ndiscriminator: {yFakeTest.detach().cpu().numpy().reshape(-1).round(4)}')
-                #             plt.show();
-                # self.iterCount += 1
+                # Append the losses and gradient norms to the lists
+                losses_dis_real.append(lossDisReal.detach().cpu().numpy())
+                losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
+                losses_gen.append(lossGen.detach().cpu().numpy())
+                grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
+                grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
+
 
         del self.target
         del self.samplesScaled
         del self.dataset
         del self.dataLoader
+        # After training
+        fig = plt.figure(figsize=(12, 8))
+        plt.subplot(2, 1, 1)
+        plt.plot(losses_dis_real, label='Discriminator Loss - Real')
+        plt.plot(losses_dis_fake, label='Discriminator Loss - Fake')
+        plt.plot(losses_gen, label='Generator Loss')
+        plt.xlabel('Iterations')
+        plt.ylabel('Loss')
+        plt.title('Training Losses')
+        plt.legend()
+
+        plt.subplot(2, 1, 2)
+        plt.plot(grad_norms_dis, label='Discriminator Gradient Norm')
+        plt.plot(grad_norms_gen, label='Generator Gradient Norm')
+        plt.xlabel('Iterations')
+        plt.ylabel('Gradient Norm')
+        plt.title('Gradient Norms During Training')
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" /"Losses_and_GradientNorm.png")
+        plt.close(fig)
 
     def generate_sample(self, labels: np.array):
         with torch.no_grad():

@@ -274,7 +274,7 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = None
+    n_profiles = 10
     cluster_label = 0
     batchSize = int(1_000)
     train_df = create_training_dataframe(
@@ -288,7 +288,7 @@ if __name__ == "__main__":
          batchSize=batchSize,
          dimNoise=noise_dimension,
          training_df=train_df,
-         epochCount=2000,
+         epochCount=1000,
          lr=1e-5,
          maxNorm=1e6,
     )
