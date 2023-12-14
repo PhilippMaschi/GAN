@@ -40,17 +40,21 @@ class Generator(nn.Module):
         self.model = nn.Sequential(
             # 1st layer
             nn.Linear(in_features=noise_dim + feature_dim, out_features=noise_dim * 80),
+            nn.BatchNorm1d(noise_dim * 80),
             nn.LeakyReLU(inplace=True),
             # 2nd layer
             nn.Dropout(0.2),
             # 3rd layer
             nn.Linear(in_features=noise_dim * 80, out_features=1000),
+            nn.BatchNorm1d(1000),
             nn.LeakyReLU(inplace=True),
             # 4th layer
-            nn.Linear(in_features=1000, out_features=128),
+            nn.Linear(in_features=1000, out_features=500),
+            nn.BatchNorm1d(500),
             nn.LeakyReLU(inplace=True),
             # 5th layer
-            nn.Linear(in_features=128, out_features=128),
+            nn.Linear(in_features=500, out_features=128),
+            nn.BatchNorm1d(128),
             nn.LeakyReLU(inplace=True),
             # 6th layer
             nn.Dropout(0.1),
@@ -70,17 +74,21 @@ class Discriminator(nn.Module):
         self.model = nn.Sequential(
             # 1st layer
             nn.Linear(in_features=self.targetCount, out_features=self.targetCount * 40),
+            nn.BatchNorm1d(self.targetCount * 40),
             nn.LeakyReLU(inplace=True),
             # 2nd layer
             nn.Dropout(0.1),
             # 3rd layer
             nn.Linear(in_features=self.targetCount * 40, out_features=256),
+            nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
             # 4th layer
             nn.Linear(in_features=256, out_features=128),
+            nn.BatchNorm1d(128),
             nn.LeakyReLU(inplace=True),
             # 5th layer
             nn.Linear(in_features=128, out_features=64),
+            nn.BatchNorm1d(64),
             nn.LeakyReLU(inplace=True),
             # 6th layer
             nn.Dropout(0.1),

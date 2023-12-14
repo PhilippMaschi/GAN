@@ -250,10 +250,12 @@ def visualize_results_from_model_folder(folder_path, noise_dimension, device):
         df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
                                                                   synthetic_data=synthetic_data,
                                                                   original_meta_data=orig_meta_data)
-
+        folder_name = Path(folder_path).stem
+        output_path = Path(folder_path).parent.parent / "plots" / folder_name
+        output_path.mkdir(parents=True, exist_ok=True)
         plot_seasonal_daily_means(df_real=train_df,
                                   df_synthetic=df_synthetic,
-                                  output_path=Path(r"plots"),
+                                  output_path=output_path,
                                   epoch_number=epoch)
 
 
@@ -272,9 +274,9 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 100
+    n_profiles = None
     cluster_label = 0
-    batchSize = int(395 * n_profiles/10)
+    batchSize = int(1_000)
     train_df = create_training_dataframe(
         password_=password,
         clusterLabel=cluster_label,
@@ -286,7 +288,7 @@ if __name__ == "__main__":
          batchSize=batchSize,
          dimNoise=noise_dimension,
          training_df=train_df,
-         epochCount=1_500,
+         epochCount=2000,
          lr=1e-5,
          maxNorm=1e6,
     )
