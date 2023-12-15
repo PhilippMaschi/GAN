@@ -288,7 +288,7 @@ if __name__ == "__main__":
          batchSize=batchSize,
          dimNoise=noise_dimension,
          training_df=train_df,
-         epochCount=1000,
+         epochCount=2000,
          lr=1e-5,
          maxNorm=1e6,
     )

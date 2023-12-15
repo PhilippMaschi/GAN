@@ -262,12 +262,12 @@ class GAN(object):
                 if (epoch + 1) % 500 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
-                # Append the losses and gradient norms to the lists
-                losses_dis_real.append(lossDisReal.detach().cpu().numpy())
-                losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
-                losses_gen.append(lossGen.detach().cpu().numpy())
-                grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
-                grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
+            # Append the losses and gradient norms to the lists
+            losses_dis_real.append(lossDisReal.detach().cpu().numpy())
+            losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
+            losses_gen.append(lossGen.detach().cpu().numpy())
+            grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
+            grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
 
 
         del self.target
@@ -296,6 +296,11 @@ class GAN(object):
         plt.tight_layout()
         plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" /"Losses_and_GradientNorm.png")
         plt.close(fig)
+        del losses_dis_real
+        del losses_dis_fake
+        del losses_gen
+        del grad_norms_dis
+        del grad_norms_gen
 
     def generate_sample(self, labels: np.array):
         with torch.no_grad():
