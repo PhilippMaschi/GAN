@@ -13,6 +13,7 @@ import random
 from GAN_Philipp import generate_data_from_saved_model
 from philipp_main import create_training_dataframe
 
+
 # matplotlib.use('Agg')
 
 
@@ -20,17 +21,22 @@ def plotly_single_profiles(real_data, synthetic_data, epoch: int):
     numeric_cols = [col for col in real_data.columns if is_number(col)]
     random_profiles = random.sample(numeric_cols, 3)
     real = real_data[random_profiles]
-    real["type"] = "real"
+    real.loc[:, "type"] = "real"
+    real.loc[:, "hour"] = np.arange(len(real))
     synthetic = synthetic_data[random_profiles]
-    synthetic["type"] = "synthetic"
+    synthetic.loc[:, "type"] = "synthetic"
+    synthetic.loc[:, "hour"] = np.arange(len(synthetic))
+
     plot_df = pd.concat([real, synthetic], axis=0)
-    plot_df = plot_df.melt(id_vars="type", var_name="profile")
+    plot_df = plot_df.melt(id_vars=["type", "hour"], var_name="profile")
 
     fig = px.line(
         data_frame=plot_df,
-        y="profile",
+        x="hour",
+        y="value",
         line_dash="type",
-
+        color="profile",
+        title=f"Epoch: {epoch}"
     )
     fig.show()
 
@@ -200,7 +206,6 @@ def plot_seasonal_daily_means(df_real: pd.DataFrame,
     plt.title(f"epoch: {epoch_number}")
     plt.tight_layout()
     fig.savefig(output_path / f"Daily_Mean_Comparison_{epoch_number}.png")
-    plt.show()
     plt.close(fig)
 
 
@@ -320,9 +325,12 @@ def visualize_results_from_model_folder(
             device=device,
         )
 
-        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
-                                                                  synthetic_data=synthetic_data,
-                                                                  original_meta_data=orig_meta_data)
+        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(
+            hull=hull,
+            synthetic_data=synthetic_data,
+            original_meta_data=orig_meta_data
+        ).set_index("timestamp")
+
         folder_name = Path(folder_path).stem
         output_path = Path(folder_path).parent.parent / "plots" / folder_name
         output_path.mkdir(parents=True, exist_ok=True)
@@ -375,7 +383,7 @@ if __name__ == "__main__":
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
                   f"clusterLabel={cluster_label}_" \
-                  f"n_profiles_trained_on={n_profiles_trained_on}_"\
+                  f"n_profiles_trained_on={n_profiles_trained_on}_" \
                   f"batchSize={batch_size}_" \
                   f"featureCount={feature_count}_" \
                   f"noise_dim={noise_dim}"
@@ -389,4 +397,4 @@ if __name__ == "__main__":
         target_count=target_count,
         n_profiles_trained_on=n_profiles_trained_on,
         device=device
-        )
+    )
