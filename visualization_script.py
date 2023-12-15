@@ -8,9 +8,31 @@ import cryptpandas as crp
 from pathlib import Path
 from scipy.stats import ks_2samp
 import torch
+import plotly.express as px
+import random
+from GAN_Philipp import generate_data_from_saved_model
+from philipp_main import create_training_dataframe
+
+# matplotlib.use('Agg')
 
 
-matplotlib.use('Agg')
+def plotly_single_profiles(real_data, synthetic_data, epoch: int):
+    numeric_cols = [col for col in real_data.columns if is_number(col)]
+    random_profiles = random.sample(numeric_cols, 3)
+    real = real_data[random_profiles]
+    real["type"] = "real"
+    synthetic = synthetic_data[random_profiles]
+    synthetic["type"] = "synthetic"
+    plot_df = pd.concat([real, synthetic], axis=0)
+    plot_df = plot_df.melt(id_vars="type", var_name="profile")
+
+    fig = px.line(
+        data_frame=plot_df,
+        y="profile",
+        line_dash="type",
+
+    )
+    fig.show()
 
 
 def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
@@ -54,7 +76,6 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
     plt.ylabel('Principal Component 2')
     plt.legend()
     plt.savefig(output_path / f"PCA_{epoch}.png")
-    plt.show()
 
 
 def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: int):
@@ -86,7 +107,6 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: i
     plt.legend()
     plt.tight_layout()
     plt.savefig(output_path / f"total_peak_of_profiles_comparison_{epoch}.png")
-    plt.show()
 
     # Plotting mean values
     plt.figure(figsize=(10, 7))
@@ -100,7 +120,6 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: i
     plt.xlabel('Profile Index')
     plt.tight_layout()
     plt.savefig(output_path / f"total_mean_of_profiles_comparison_{epoch}.png")
-    plt.show()
 
 
 def is_number(s):
@@ -188,6 +207,7 @@ def plot_seasonal_daily_means(df_real: pd.DataFrame,
 def compare_distributions(real_df,
                           synthetic_df,
                           output_path: Path,
+                          epoch: int,
                           bins=50, ):
     """
     Compares the distributions of columns in two dataframes using histogram comparison
@@ -204,30 +224,23 @@ def compare_distributions(real_df,
     if real_df.shape[1] != synthetic_df.shape[1]:
         raise ValueError("Both dataframes must have the same number of columns.")
 
-    results = {}
-    numeric_cols = [col for col in df_real.columns if is_number(col)]
-    real = real_df[numeric_cols]
-    synthetic = synthetic_df[numeric_cols]
-    for col in real.columns:
-        if col not in synthetic:
-            raise ValueError(f"Column {col} not found in synthetic dataframe.")
+    numeric_cols = [col for col in real_df.columns if is_number(col)]
+    real_flattend = real_df[numeric_cols].values.flatten()
+    synthetic_flattend = synthetic_df[numeric_cols].values.flatten()
 
-        real_data = real[col].dropna()
-        synthetic_data = synthetic[col].dropna()
+    # Kolmogorov-Smirnov test
+    # ks_stat, ks_p_value = ks_2samp(real_flattend, synthetic_flattend)
 
-        # Kolmogorov-Smirnov test
-        ks_stat, ks_p_value = ks_2samp(real_data, synthetic_data)
-        results[col] = {'KS Statistic': ks_stat, 'KS p-value': ks_p_value}
-
-        # Histogram comparison
-        plt.figure(figsize=(10, 6))
-        plt.hist(real_data, bins=bins, alpha=0.5, label='Real')
-        plt.hist(synthetic_data, bins=bins, alpha=0.5, label='Synthetic')
-        plt.title(f'Histogram Comparison for {col}')
-        plt.xlabel('Value')
-        plt.ylabel('Frequency')
-        plt.legend()
-        plt.show()
+    # Histogram comparison
+    plt.figure(figsize=(10, 6))
+    plt.hist(real_flattend, bins=bins, alpha=0.5, label='Real')
+    plt.hist(synthetic_flattend, bins=bins, alpha=0.5, label='Synthetic')
+    plt.title(f'Histogram Comparison for')
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_path / f"Load_Distribution_{epoch}.png")
 
 
 def get_season(date):
@@ -256,44 +269,6 @@ def get_season_and_datetime(df: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-def load_all(clusterLabel: int):
-    path = Path(__file__).parent.parent / "GAN_data"
-    df_loadProfiles = crp.read_encrypted(
-        path=path / 'all_profiles.crypt',
-        password="Ene123Elec#4")
-
-    GAN_data_path = Path().absolute().parent / 'GAN_data'
-    df_labels = pd.read_csv(GAN_data_path / 'DBSCAN_15_clusters_labels.csv', sep=';')
-    df_labels['name'] = df_labels['name'].str.split('_', expand=True)[1]
-
-    number_of_profiles_gan_was_trained_on = 103
-    profiles = df_labels.loc[df_labels['labels'] == clusterLabel, 'name'].to_list()[
-               :number_of_profiles_gan_was_trained_on]
-    df_profiles = df_loadProfiles[
-        df_loadProfiles.columns[:13].tolist() + [item for item in profiles if item in df_loadProfiles.columns]].copy()
-
-    df_shape = df_profiles.melt(id_vars=df_loadProfiles.columns[:13], value_vars=df_profiles.columns[13:],
-                                var_name='profile')
-    df_shape = df_shape.pivot_table(values='value', index=['date', 'profile'], columns='hour of the day')
-
-    # load synthetic profiles
-    model = torch.load(
-        "models/model_clusterLabel_1_of_15_DBSCAN_batchSize_2000_dimLatent_32_featureCount_24_classCount_40685_dimEmbedding_40685_lr_1e-05_maxNorm_1000000.0_epochCount_1000_nr_profiles_103.pt")
-    array = model.generate_sample()
-    df_synthProfiles = df_shape.copy()
-    df_synthProfiles[::] = array
-
-    df_synthetic = df_synthProfiles.reset_index().melt(id_vars=["date", "profile"]).pivot_table(values="value",
-                                                                                                columns="profile",
-                                                                                                index=["date",
-                                                                                                       "hour of the day"])
-    df_synthetic = pd.concat([df_loadProfiles[df_loadProfiles.columns[:13]], df_synthetic.reset_index(drop=True)],
-                             axis=1)
-
-    assert df_profiles.shape == df_synthetic.shape
-    return df_profiles, df_synthetic
-
-
 # def run_sdm_lstm_detection_test(real_df, synthetic_df):
 #     numeric = [col for col in df_real.columns if is_number(col)]
 #
@@ -302,22 +277,31 @@ def load_all(clusterLabel: int):
 #                               metadata=df_real["timestamp"])
 
 
-def small_analysis(clusterLabel: int):
-    figures_output = Path(r"plots")
-    df_real, df_synthetic = load_all(clusterLabel=1)
+def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_data: np.array, original_meta_data):
+    hull[::] = synthetic_data
+    synthetic = hull.reset_index()
+    # todo the month sin etc. as list to this function dependent on the model so this is automated for other variables
+    df_synthetic = synthetic.melt(
+        id_vars=['date', 'profile', "month sin", "month cos", "day off"],
+        var_name="hour of the day",
+        value_name="value")
+    df_pivot = df_synthetic.pivot_table(values='value',
+                                        index=['date', "month sin", "month cos", "day off", "hour of the day"],
+                                        columns='profile').reset_index()
+    final = pd.concat([original_meta_data.reset_index(), df_pivot[[col for col in df_pivot.columns if is_number(col)]]],
+                      axis=1)
 
-    plot_seasonal_daily_means(df_real=df_real,
-                              df_synthetic=df_synthetic,
-                              output_path=figures_output)
-    compare_peak_and_mean(real_data=df_real,
-                          synthetic_data=df_synthetic,
-                          output_path=figures_output)
-    plot_pca_analysis(real_data=df_real,
-                      synthetic_data=df_synthetic,
-                      output_path=figures_output)
+    return final
 
 
-def visualize_results_from_model_folder(folder_path, noise_dimension, device):
+def visualize_results_from_model_folder(
+        folder_path,
+        noise_dimension,
+        feature_count,  # depends on the features selected in train_gan -> automate
+        target_count,  # 24 if we trained on days
+        n_profiles_trained_on,
+        device
+):
     # visualize the training results:
     file_names = [file.name for file in Path(folder_path).glob("*.pt")]
     file_names.sort()
@@ -330,8 +314,8 @@ def visualize_results_from_model_folder(folder_path, noise_dimension, device):
         synthetic_data = generate_data_from_saved_model(
             model_path=f"{folder_path}/{model}",
             noise_dim=noise_dimension,
-            featureCount=3,  # depends on the features selected in train_gan -> automate
-            targetCount=24,
+            featureCount=feature_count,
+            targetCount=target_count,
             original_features=orig_features,
             device=device,
         )
@@ -342,27 +326,67 @@ def visualize_results_from_model_folder(folder_path, noise_dimension, device):
         folder_name = Path(folder_path).stem
         output_path = Path(folder_path).parent.parent / "plots" / folder_name
         output_path.mkdir(parents=True, exist_ok=True)
+
+        train_df = create_training_dataframe(
+            password_="Ene123Elec#4",
+            clusterLabel=cluster_label,
+            number_of_profiles=n_profiles_trained_on,
+            label_csv_filename="DBSCAN_15_clusters_labels.csv",
+            path_to_orig_file=Path(r"X:\projects4\workspace_danielh_pr4\GAN_data")
+        )
+
         plot_seasonal_daily_means(df_real=train_df,
                                   df_synthetic=df_synthetic,
                                   output_path=output_path,
                                   epoch_number=epoch)
 
-if __name__ == "__main__":
-    figures_output = Path(r"plots")
-    df_real, df_synthetic = load_all(clusterLabel=1)
-    # run_sdm_lstm_detection_test(real_df=df_real,
-    #                            synthetic_df=df_synthetic)
-    # compare_distributions(real_df=df_real,
-    #                       synthetic_df=df_synthetic,
-    #                       output_path=figures_output,
-    #                       bins=50)
-
-    plot_seasonal_daily_means(df_real=df_real,
-                              df_synthetic=df_synthetic,
-                              output_path=figures_output)
-    compare_peak_and_mean(real_data=df_real,
+        plot_pca_analysis(real_data=train_df,
                           synthetic_data=df_synthetic,
-                          output_path=figures_output)
-    plot_pca_analysis(real_data=df_real,
-                      synthetic_data=df_synthetic,
-                      output_path=figures_output)
+                          output_path=output_path,
+                          epoch=epoch)
+
+        compare_peak_and_mean(real_data=train_df,
+                              synthetic_data=df_synthetic,
+                              output_path=output_path,
+                              epoch=epoch)
+
+        compare_distributions(real_df=train_df,
+                              synthetic_df=df_synthetic,
+                              output_path=output_path,
+                              epoch=epoch,
+                              bins=50)
+
+        plotly_single_profiles(real_data=train_df,
+                               synthetic_data=df_synthetic,
+                               epoch=epoch)
+
+
+if __name__ == "__main__":
+    model_nickname = "model_test_philipp"
+    batch_size = 64
+    noise_dim = 50
+    feature_count = 3
+    cluster_algorithm = "DBSCAN"
+    cluster_label = 0
+    n_profiles_trained_on = 10
+    target_count = 24
+    device = "cpu"
+
+    folder_name = f"models/{model_nickname}_" \
+                  f"Clustered={cluster_algorithm}_" \
+                  f"clusterLabel={cluster_label}_" \
+                  f"n_profiles_trained_on={n_profiles_trained_on}_"\
+                  f"batchSize={batch_size}_" \
+                  f"featureCount={feature_count}_" \
+                  f"noise_dim={noise_dim}"
+
+    model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
+
+    visualize_results_from_model_folder(
+        folder_path=model_folder,
+        noise_dimension=noise_dim,
+        feature_count=feature_count,
+        target_count=target_count,
+        n_profiles_trained_on=n_profiles_trained_on,
+        device=device
+        )

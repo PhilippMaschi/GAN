@@ -9,8 +9,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from time import perf_counter
 from pathlib import Path
-
-
+import matplotlib
+matplotlib.use('Agg')
 # import pytorch.lightning
 
 
@@ -115,8 +115,9 @@ class GAN(object):
                  epochCount,
                  n_transformed_features: int,  # anzahl an sin cos transformierten variablen (1 variable wird zu 2 (sin + cos))
                  n_number_features: int,   # anzahl der features (labels) die nicht transformiert werden
-                 testLabel=None,
-                 exampleCount=3,
+                 cluster_label: int,  # label of the cluster
+                 cluster_algorithm: str,
+                 n_profiles_trained_on: int,
                  ):
         self.name = name
         self.device = device
@@ -129,12 +130,15 @@ class GAN(object):
         self.lr = lr
         self.maxNorm = maxNorm
         self.epochCount = epochCount
-        self.testLabel = testLabel
-        self.exampleCount = exampleCount
+
         self.folder_name = f"models/{self.name}_" \
+                           f"Clustered={cluster_algorithm}_" \
+                           f"clusterLabel={cluster_label}_" \
+                           f"n_profiles_trained_on={n_profiles_trained_on}_" \
                            f"batchSize={self.batchSize}_" \
                            f"featureCount={self.featureCount}_" \
                            f"noise_dim={self.dimNoise}"
+
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
         for file in Path(self.folder_name).iterdir():
@@ -259,7 +263,7 @@ class GAN(object):
                 self.optimGen.step()
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 500 == 0:
+                if (epoch + 1) % 100 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
             # Append the losses and gradient norms to the lists
@@ -294,6 +298,8 @@ class GAN(object):
         plt.legend()
 
         plt.tight_layout()
+        path = Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}"
+        path.mkdir(exist_ok=True, parents=True)
         plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" /"Losses_and_GradientNorm.png")
         plt.close(fig)
         del losses_dis_real
@@ -324,7 +330,7 @@ def generate_data_from_saved_model(
 ):
     # Initialize the generator
     generator = Generator(noise_dim, featureCount, targetCount)
-    checkpoint = torch.load(model_path)
+    checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
     generator.eval()

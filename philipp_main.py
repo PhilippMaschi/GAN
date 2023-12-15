@@ -6,9 +6,7 @@ import numpy as np
 import torch
 from pathlib import Path
 from GAN_Philipp import GAN, generate_data_from_saved_model
-from visualization_script import plot_seasonal_daily_means, compare_peak_and_mean, plot_pca_analysis
 import argparse
-
 
 print(f'torch {torch.__version__}')
 
@@ -125,36 +123,19 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     return target, features, df_hull
 
 
-def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_data: np.array, original_meta_data):
-    hull[::] = synthetic_data
-    synthetic = hull.reset_index()
-    # todo the month sin etc. as list to this function dependent on the model so this is automated for other variables
-    df_synthetic = synthetic.melt(
-        id_vars=['date', 'profile', "month sin", "month cos", "day off"],
-        var_name="hour of the day",
-        value_name="value")
-    df_pivot = df_synthetic.pivot_table(values='value',
-                                        index=['date', "month sin", "month cos", "day off", "hour of the day"],
-                                        columns='profile').reset_index()
-    final = pd.concat([original_meta_data.reset_index(), df_pivot[[col for col in df_pivot.columns if is_number(col)]]],
-                      axis=1)
-
-    return final
-
-
 def create_training_dataframe(password_,
                               clusterLabel: int,
                               number_of_profiles: int,
+                              path_to_orig_file: Path = Path().absolute().parent / 'GAN_data',
                               label_csv_filename: str = 'DBSCAN_15_clusters_labels.csv',
                               ) -> pd.DataFrame:
     # Data import
-    GAN_data_path = Path().absolute().parent / 'GAN_data'
     # all load profiles:
-    df_loadProfiles = crp.read_encrypted(path=os.path.join(GAN_data_path, 'all_profiles.crypt'), password=password_)
+    df_loadProfiles = crp.read_encrypted(path=path_to_orig_file / 'all_profiles.crypt', password=password_)
 
     # filter the total amount of profiles:
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
-                                     filepath=GAN_data_path / label_csv_filename,
+                                     filepath=path_to_orig_file / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
     print(f"number of profiles: {len(labels)}")
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
@@ -166,11 +147,14 @@ def train_gan(
         batchSize: int,
         dimNoise: int,
         training_df: pd.DataFrame,
+        cluster_label,
+        cluster_algorithm,
+        n_profiles_trained_on,
         epochCount=500,
         lr=1e-5,
         maxNorm=1e6,
-        ):
 
+):
     # create np array with target and features
     target, features, df_hull = create_numpy_matrix_for_gan(training_df.copy())
 
@@ -196,9 +180,11 @@ def train_gan(
         lr=lr,
         maxNorm=maxNorm,
         epochCount=epochCount,
-        # testLabel = testLabel,
         n_transformed_features=2,
         n_number_features=1,
+        cluster_label=cluster_label,
+        cluster_algorithm=cluster_algorithm,
+        n_profiles_trained_on=n_profiles_trained_on
     )
 
     model.train()
@@ -210,47 +196,6 @@ def train_gan(
     orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
     print(f"Training {model.folder_name} done""")
-    return model.folder_name
-
-
-def visualize_results_from_model_folder(folder_path, noise_dimension, device):
-    # visualize the training results:
-    file_names = [file.name for file in Path(folder_path).glob("*.pt")]
-    file_names.sort()
-
-    orig_features = np.load(Path(folder_path) / "original_features.npy")
-    hull = pd.read_parquet(Path(folder_path) / "hull.parquet.gzip")
-    orig_meta_data = pd.read_parquet(Path(folder_path) / "meta_data.parquet.gzip")
-    for model in file_names:
-        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
-        synthetic_data = generate_data_from_saved_model(
-            model_path=f"{folder_path}/{model}",
-            noise_dim=noise_dimension,
-            featureCount=3,  # depends on the features selected in train_gan -> automate
-            targetCount=24,
-            original_features=orig_features,
-            device=device,
-        )
-
-        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
-                                                                  synthetic_data=synthetic_data,
-                                                                  original_meta_data=orig_meta_data)
-        folder_name = Path(folder_path).stem
-        output_path = Path(folder_path).parent.parent / "plots" / folder_name
-        output_path.mkdir(parents=True, exist_ok=True)
-        plot_seasonal_daily_means(df_real=train_df,
-                                  df_synthetic=df_synthetic,
-                                  output_path=output_path,
-                                  epoch_number=epoch)
-        plot_pca_analysis(real_data=train_df,
-                          synthetic_data=df_synthetic,
-                          output_path=output_path,
-                          epoch=epoch)
-        compare_peak_and_mean(real_data=train_df,
-                              synthetic_data=df_synthetic,
-                              output_path=output_path,
-                              epoch=epoch)
-
 
 
 if __name__ == "__main__":
@@ -270,27 +215,30 @@ if __name__ == "__main__":
     noise_dimension = 50
     n_profiles = 10
     cluster_label = 0
-    batchSize = int(1_000)
+    batchSize = 64
+    epochs = 500
+    path_to_GAN_data = Path(r"X:\projects4\workspace_danielh_pr4\GAN_data")
+
     train_df = create_training_dataframe(
         password_=password,
         clusterLabel=cluster_label,
         number_of_profiles=n_profiles,
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
+        path_to_orig_file=path_to_GAN_data
     )
 
-    model_folder = train_gan(
-         batchSize=batchSize,
-         dimNoise=noise_dimension,
-         training_df=train_df,
-         epochCount=500,
-         lr=1e-5,
-         maxNorm=1e6,
+    train_gan(
+        batchSize=batchSize,
+        dimNoise=noise_dimension,
+        training_df=train_df,
+        epochCount=epochs,
+        cluster_algorithm="DBSCAN",
+        cluster_label=cluster_label,
+        n_profiles_trained_on=n_profiles,
+        lr=1e-5,
+        maxNorm=1e6,
     )
     torch.cuda.empty_cache()
 
-    visualize_results_from_model_folder(folder_path=model_folder,
-                                        noise_dimension=noise_dimension,
-                                        device="cuda:0")
-
-os.kill(pid, signal.SIGTERM)
-sys.exit()
+    os.kill(pid, signal.SIGTERM)
+    sys.exit()
