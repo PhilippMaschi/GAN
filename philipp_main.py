@@ -3,29 +3,14 @@ import os, sys, signal
 import getpass
 import pandas as pd
 import numpy as np
-
-import plotly.express as px
-import plotly.graph_objects as go
 import torch
-
-print(f'torch {torch.__version__}')
-from sklearn.preprocessing import minmax_scale, MinMaxScaler
-import json
 from pathlib import Path
-from torch.utils.data import TensorDataset, DataLoader
-import torch
-import matplotlib.pyplot as plt
-from datetime import date
-
-from data_manip import remove_incomplete_days
-from preproc import import_and_preprocess_data, create_and_add_datetime_features
 from GAN_Philipp import GAN, generate_data_from_saved_model
 from visualization_script import plot_seasonal_daily_means, compare_peak_and_mean, plot_pca_analysis
-from plot import plot_losses
-from plot import plot_synthetic_vs_real_samples
 import argparse
 
-import gc
+
+print(f'torch {torch.__version__}')
 
 
 def conv_index_to_bins(index):
@@ -257,6 +242,15 @@ def visualize_results_from_model_folder(folder_path, noise_dimension, device):
                                   df_synthetic=df_synthetic,
                                   output_path=output_path,
                                   epoch_number=epoch)
+        plot_pca_analysis(real_data=train_df,
+                          synthetic_data=df_synthetic,
+                          output_path=output_path,
+                          epoch=epoch)
+        compare_peak_and_mean(real_data=train_df,
+                              synthetic_data=df_synthetic,
+                              output_path=output_path,
+                              epoch=epoch)
+
 
 
 if __name__ == "__main__":
@@ -288,7 +282,7 @@ if __name__ == "__main__":
          batchSize=batchSize,
          dimNoise=noise_dimension,
          training_df=train_df,
-         epochCount=2000,
+         epochCount=500,
          lr=1e-5,
          maxNorm=1e6,
     )

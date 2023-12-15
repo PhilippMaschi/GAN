@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import cryptpandas as crp
@@ -11,7 +10,10 @@ from scipy.stats import ks_2samp
 import torch
 
 
-def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
+matplotlib.use('Agg')
+
+
+def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
     """
     Perform PCA and plot the first two principal components for real and synthetic data.
     
@@ -20,12 +22,7 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
     # Combining the data
-    numeric_cols = [col for col in df_real.columns if is_number(col)]
-    real = real_data[numeric_cols]
-    synthetic = synthetic_data[numeric_cols]
-    combined_data = pd.concat([real, synthetic], axis=0)
-    labels = np.array(['Real'] * len(real) + ['Synthetic'] * len(synthetic))
-    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    numeric_cols = [col for col in real_data.columns if is_number(col)]
     real = real_data[numeric_cols]
     synthetic = synthetic_data[numeric_cols]
     combined_data = pd.concat([real, synthetic], axis=0)
@@ -51,25 +48,16 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path):
                 alpha=0.3,
                 label='Synthetic',
                 )
-    plt.scatter(principal_components[labels == 'Real', 0],
-                principal_components[labels == 'Real', 1],
-                alpha=0.3,
-                label='Real',
-                )
-    plt.scatter(principal_components[labels == 'Synthetic', 0],
-                principal_components[labels == 'Synthetic', 1],
-                alpha=0.3,
-                label='Synthetic',
-                )
-    plt.title('PCA of Real vs Synthetic Data')
+
+    plt.title(f'PCA of Real vs Synthetic Data epoch: {epoch}')
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
     plt.legend()
-    plt.savefig(output_path / f"PCA.png")
+    plt.savefig(output_path / f"PCA_{epoch}.png")
     plt.show()
 
 
-def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
+def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: int):
     """
     Compare the peak and mean values between real and synthetic data.
     
@@ -77,7 +65,7 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     real_data (DataFrame): DataFrame containing the real load profiles.
     synthetic_data (DataFrame): DataFrame containing the synthetic load profiles.
     """
-    numeric_cols = [col for col in df_real.columns if is_number(col)]
+    numeric_cols = [col for col in real_data.columns if is_number(col)]
     real = real_data[numeric_cols]
     synthetic = synthetic_data[numeric_cols]
     # Calculating peak and mean values
@@ -90,28 +78,28 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path):
     plt.figure(figsize=(10, 7))
     plt.plot(real_peaks, label='Real Peaks', color='blue')
     plt.plot(synthetic_peaks, label='Synthetic Peaks', color='red')
-    plt.title('Comparison of Peak Values')
+    plt.title(f'Comparison of Peak Values epoch {epoch}')
     plt.xlabel('Profile Index')
     plt.ylabel('Peak Value')
     ax = plt.gca()
     ax.get_xaxis().set_ticks([])
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_path / f"total_peak_of_profiles_comparison.png")
+    plt.savefig(output_path / f"total_peak_of_profiles_comparison_{epoch}.png")
     plt.show()
 
     # Plotting mean values
     plt.figure(figsize=(10, 7))
     plt.plot(real_means, label='Real Means', color='blue')
     plt.plot(synthetic_means, label='Synthetic Means', color='red')
-    plt.title('Comparison of Mean Values')
+    plt.title(f'Comparison of Mean Values epoch {epoch}')
     plt.ylabel('Mean Value')
     plt.legend()
     ax = plt.gca()
     ax.get_xaxis().set_ticks([])
     plt.xlabel('Profile Index')
     plt.tight_layout()
-    plt.savefig(output_path / f"total_mean_of_profiles_comparison.png")
+    plt.savefig(output_path / f"total_mean_of_profiles_comparison_{epoch}.png")
     plt.show()
 
 
@@ -328,6 +316,36 @@ def small_analysis(clusterLabel: int):
                       synthetic_data=df_synthetic,
                       output_path=figures_output)
 
+
+def visualize_results_from_model_folder(folder_path, noise_dimension, device):
+    # visualize the training results:
+    file_names = [file.name for file in Path(folder_path).glob("*.pt")]
+    file_names.sort()
+
+    orig_features = np.load(Path(folder_path) / "original_features.npy")
+    hull = pd.read_parquet(Path(folder_path) / "hull.parquet.gzip")
+    orig_meta_data = pd.read_parquet(Path(folder_path) / "meta_data.parquet.gzip")
+    for model in file_names:
+        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
+        synthetic_data = generate_data_from_saved_model(
+            model_path=f"{folder_path}/{model}",
+            noise_dim=noise_dimension,
+            featureCount=3,  # depends on the features selected in train_gan -> automate
+            targetCount=24,
+            original_features=orig_features,
+            device=device,
+        )
+
+        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(hull=hull,
+                                                                  synthetic_data=synthetic_data,
+                                                                  original_meta_data=orig_meta_data)
+        folder_name = Path(folder_path).stem
+        output_path = Path(folder_path).parent.parent / "plots" / folder_name
+        output_path.mkdir(parents=True, exist_ok=True)
+        plot_seasonal_daily_means(df_real=train_df,
+                                  df_synthetic=df_synthetic,
+                                  output_path=output_path,
+                                  epoch_number=epoch)
 
 if __name__ == "__main__":
     figures_output = Path(r"plots")
