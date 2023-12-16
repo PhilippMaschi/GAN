@@ -149,7 +149,6 @@ def train_gan(
         training_df: pd.DataFrame,
         cluster_label,
         cluster_algorithm,
-        n_profiles_trained_on,
         epochCount=500,
         lr=1e-5,
         maxNorm=1e6,
@@ -184,7 +183,7 @@ def train_gan(
         n_number_features=1,
         cluster_label=cluster_label,
         cluster_algorithm=cluster_algorithm,
-        n_profiles_trained_on=n_profiles_trained_on
+        n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)])
     )
 
     model.train()
@@ -213,18 +212,16 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 10
+    n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 64
-    epochs = 500
-    path_to_GAN_data = Path(r"X:\projects4\workspace_danielh_pr4\GAN_data")
+    epochs = 1000
 
     train_df = create_training_dataframe(
         password_=password,
         clusterLabel=cluster_label,
         number_of_profiles=n_profiles,
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
-        path_to_orig_file=path_to_GAN_data
     )
 
     train_gan(
@@ -234,7 +231,6 @@ if __name__ == "__main__":
         epochCount=epochs,
         cluster_algorithm="DBSCAN",
         cluster_label=cluster_label,
-        n_profiles_trained_on=n_profiles,
         lr=1e-5,
         maxNorm=1e6,
     )
