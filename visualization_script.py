@@ -287,11 +287,12 @@ def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_dat
     synthetic = hull.reset_index()
     # todo the month sin etc. as list to this function dependent on the model so this is automated for other variables
     df_synthetic = synthetic.melt(
-        id_vars=['date', 'profile', "month sin", "month cos", "day off"],
+        id_vars=['date', 'profile', "month sin", "month cos", "weekday sin", "weekday cos", "day off"],
         var_name="hour of the day",
         value_name="value")
     df_pivot = df_synthetic.pivot_table(values='value',
-                                        index=['date', "month sin", "month cos", "day off", "hour of the day"],
+                                        index=['date', "month sin", "month cos", "weekday sin", "weekday cos",
+                                               "day off", "hour of the day"],
                                         columns='profile').reset_index()
     final = pd.concat([original_meta_data.reset_index(), df_pivot[[col for col in df_pivot.columns if is_number(col)]]],
                       axis=1)
@@ -371,9 +372,9 @@ def visualize_results_from_model_folder(
 
 if __name__ == "__main__":
     model_nickname = "model_test_philipp"
-    batch_size = 64
+    batch_size = 500
     noise_dim = 50
-    feature_count = 3
+    feature_count = 5
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
     n_profiles_trained_on = 10

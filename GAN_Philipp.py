@@ -247,7 +247,7 @@ class GAN(object):
                 lossDisFake = self.criterion(yFake, labelFake)
                 lossDisFake.backward()
 
-                lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
+                # lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
                 # gradient clipping (large max_norm to avoid actual clipping)
                 grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm=self.maxNorm)
                 self.optimDis.step()  # update the discriminator
@@ -263,7 +263,7 @@ class GAN(object):
                 self.optimGen.step()
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 100 == 0:
+                if (epoch + 1) % 500 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
 
             # Append the losses and gradient norms to the lists

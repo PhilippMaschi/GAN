@@ -99,9 +99,11 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     data later
 
     """
-    m_unique = df_train["month of the year"].unique()
-    df_train["month sin"] = df_train["month of the year"].apply(lambda x: np.sin(x * (2 * np.pi / len(m_unique))))
-    df_train["month cos"] = df_train["month of the year"].apply(lambda x: np.cos(x * (2 * np.pi / len(m_unique))))
+    df_train["month sin"] = np.sin(df_train.index.month * (2 * np.pi / len(df_train.index.month.unique())))
+    df_train["month cos"] = np.cos(df_train.index.month * (2 * np.pi / len(df_train.index.month.unique())))
+    df_train["weekday sin"] = np.sin(df_train.index.weekday * (2 * np.pi / len(df_train.index.weekday.unique())))
+    df_train["weekday cos"] = np.cos(df_train.index.weekday * (2 * np.pi / len(df_train.index.weekday.unique())))
+
     non_numeric_cols = [col for col in df_train.columns if not is_number(col)]
     numeric_cols = [col for col in df_train.columns if is_number(col)]
     df_shape = df_train.melt(id_vars=df_train[non_numeric_cols],
@@ -109,7 +111,10 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
                              var_name='profile')
 
     df_pivot = df_shape.pivot_table(values='value',
-                                    index=['date', 'profile', "month sin", "month cos", "day off"],
+                                    index=[
+                                        'date', 'profile', "month sin", "month cos", "weekday sin", "weekday cos",
+                                           "day off"
+                                    ],
                                     columns='hour of the day')
     # create a shape of the df_pivot that is needed to reshape the generated data from the GAN later
     df_hull = df_pivot.copy()
@@ -118,6 +123,8 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     target = df_pivot.values
     features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
                           df_pivot.index.get_level_values("month cos").to_numpy(),
+                          df_pivot.index.get_level_values("weekday sin").to_numpy(),
+                          df_pivot.index.get_level_values("weekday cos").to_numpy(),
                           df_pivot.index.get_level_values("day off").to_numpy()]).T
     del df_train
     return target, features, df_hull
@@ -179,7 +186,7 @@ def train_gan(
         lr=lr,
         maxNorm=maxNorm,
         epochCount=epochCount,
-        n_transformed_features=2,
+        n_transformed_features=4,
         n_number_features=1,
         cluster_label=cluster_label,
         cluster_algorithm=cluster_algorithm,
@@ -212,10 +219,10 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = None  # kann None sein, dann werden alle Profile genommen
+    n_profiles = 10  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 64
-    epochs = 1000
+    batchSize = 500
+    epochs = 2000
 
     train_df = create_training_dataframe(
         password_=password,
