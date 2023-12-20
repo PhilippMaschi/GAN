@@ -387,6 +387,9 @@ def visualize_results_from_model_folder(
         else:
             df_real = train_df
 
+
+        plot_average_week(df_synthetic, df_real, output_path, epoch)
+
         plot_seasonal_daily_means(df_real=df_real,
                                   df_synthetic=df_synthetic,
                                   output_path=output_path,
@@ -408,6 +411,7 @@ def visualize_results_from_model_folder(
                               epoch=epoch,
                               bins=25)
 
+
         # plotly_single_profiles(real_data=df_real,
         #                        synthetic_data=df_synthetic,
         #                        epoch=epoch)
@@ -423,6 +427,7 @@ if __name__ == "__main__":
     n_profiles_trained_on = 100
     target_count = 24
     device = "cpu"
+    loss = "MSE"
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
@@ -430,11 +435,12 @@ if __name__ == "__main__":
                   f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                   f"BatchSize={batch_size}_" \
                   f"FeatureCount={feature_count}_" \
-                  f"NoiseDim={noise_dim}"
+                  f"NoiseDim={noise_dim}_" \
+                  f"Loss={loss}"
 
     model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
 
-    compare_scaled = False
+    compare_scaled = True
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,

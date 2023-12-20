@@ -296,7 +296,7 @@ class GAN(object):
                 #     run[npt_logger.base_namespace]["batch/grad_norm_gen"].append(grad_norm_gen.item())
                 #     run[npt_logger.base_namespace]["batch/grad_norm_dis"].append(grad_norm_dis.item())
 
-                if (epoch + 1) % 100 == 0:
+                if (epoch + 1) % 500 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch={epoch + 1}.pt", epoch)
 
             # npt_logger.log_checkpoint()

@@ -156,6 +156,7 @@ def train_gan(
         training_df: pd.DataFrame,
         cluster_label,
         cluster_algorithm,
+        loss: str,
         epochCount=500,
         lr=1e-5,
         maxNorm=1e6,
@@ -190,10 +191,9 @@ def train_gan(
         n_number_features=1,
         cluster_label=cluster_label,
         cluster_algorithm=cluster_algorithm,
-        n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)])
+        n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)]),
+        LossFct=loss
     )
-
-    model.train()
     # save df_hull to the model folder so the generated data can be easily reshaped:
     df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
     # save the original features to a npz file so it can be used for generating data later:
@@ -201,6 +201,8 @@ def train_gan(
     # save the original metadata:
     orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
+
+    model.train()
     print(f"Training {model.folder_name} done""")
 
 
@@ -222,7 +224,8 @@ if __name__ == "__main__":
     n_profiles = 100  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 1000
-    epochs = 5000
+    epochs = 2000
+    Loss = "MSE"
 
     train_df = create_training_dataframe(
         password_=password,
@@ -240,6 +243,7 @@ if __name__ == "__main__":
         cluster_label=cluster_label,
         lr=1e-5,
         maxNorm=1e6,
+        loss=Loss
     )
     torch.cuda.empty_cache()
 
