@@ -11,6 +11,10 @@ from time import perf_counter
 from pathlib import Path
 import matplotlib
 matplotlib.use('Agg')
+# from neptune_pytorch import NeptuneLogger
+# import neptune
+# from neptune.utils import stringify_unsupported
+
 # import pytorch.lightning
 
 
@@ -118,6 +122,7 @@ class GAN(object):
                  cluster_label: int,  # label of the cluster
                  cluster_algorithm: str,
                  n_profiles_trained_on: int,
+                 LossFct: str
                  ):
         self.name = name
         self.device = device
@@ -137,7 +142,8 @@ class GAN(object):
                            f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                            f"BatchSize={self.batchSize}_" \
                            f"FeatureCount={self.featureCount}_" \
-                           f"NoiseDim={self.dimNoise}"
+                           f"NoiseDim={self.dimNoise}_" \
+                           f"Loss={LossFct}"
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
@@ -148,8 +154,8 @@ class GAN(object):
 
         # Scale data and create dataLoader
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
-        self.samplesScaled = self.scaler.fit_transform(target.T).T
-        target_tensor = torch.Tensor(self.samplesScaled)
+        # self.samplesScaled = self.scaler.fit_transform(target.T).T
+        target_tensor = torch.Tensor(self.target)#self.samplesScaled)
         features_tensor = torch.Tensor(self.features)
         self.dataset = MyDataset(target_tensor, features_tensor)
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
@@ -168,7 +174,7 @@ class GAN(object):
         self.optimDis = optim.Adam(params=self.Dis.parameters(), lr=self.lr)
 
         # Initialize the loss function
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.MSELoss()  #nn.BCELoss()
 
         self.df_loss = pd.DataFrame(
             columns=[
@@ -205,6 +211,29 @@ class GAN(object):
         print(f"loaded model at epoch: {checkpoint['epoch']}")
 
     def train(self):
+        # run = neptune.init_run(
+        #     project="philmaschi/GAN",
+        #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ZDE3NGVjNy1kZjdiLTQ1MzMtOGEzNi0yZDhlZjIxZjRjZGIifQ==",
+        # )
+        # npt_logger = NeptuneLogger(
+        #     run=run,
+        #     model=self.Gen,
+        #     log_model_diagram=True,
+        #     log_gradients=True,
+        #     log_parameters=True,
+        #     log_freq=30,
+        # )
+        parameters = {
+            "lr": self.lr,
+            "BatchSize": self.batchSize,
+            "NoiseDim": self.dimNoise,
+            "model_filename": self.name,
+            "device": self.device,
+            "epochs": self.epochCount,
+            "loss": "MSE"
+        }
+        # run[npt_logger.base_namespace]["hyperparams"] = stringify_unsupported(parameters)
+
         losses_dis_real = []
         losses_dis_fake = []
         losses_gen = []
@@ -225,7 +254,7 @@ class GAN(object):
                                  fill_value=1,
                                  device=self.device,
                                  dtype=torch.float32)  # Column vector a tensor containing only ones
-                lossDisReal = self.criterion(yReal, labelReal)  # calculate the loss of Dis : Single number
+                lossDisReal = nn.BCELoss(yReal, labelReal)  # calculate the loss of Dis : Single number
                 lossDisReal.backward()  # calculate new gradients
                 # Train discriminator with fake data
                 # create a tensor filled with random numbers rows: Number of days, column dimLatent
@@ -240,7 +269,7 @@ class GAN(object):
                 # create fake data from noise + random labels with generator
                 xFake = self.Gen(noise, randomLabelFake)
                 yFake = self.Dis(xFake.detach())  # let the discriminator label the fake data
-                lossDisFake = self.criterion(yFake, labelFake)
+                lossDisFake = nn.BCELoss(yFake, labelFake)
                 lossDisFake.backward()
 
                 # lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
@@ -259,9 +288,18 @@ class GAN(object):
                 self.optimGen.step()
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 1000 == 0:
+                # Log after every 30 steps
+                # if batchIdx % 30 == 0:
+                #     run[npt_logger.base_namespace]["batch/lossDisReal"].append(lossDisReal.item())
+                #     run[npt_logger.base_namespace]["batch/lossDisFake"].append(lossDisReal.item())
+                #     run[npt_logger.base_namespace]["batch/lossGen"].append(lossGen.item())
+                #     run[npt_logger.base_namespace]["batch/grad_norm_gen"].append(grad_norm_gen.item())
+                #     run[npt_logger.base_namespace]["batch/grad_norm_dis"].append(grad_norm_dis.item())
+
+                if (epoch + 1) % 100 == 0:
                     self.save_model_state(f"{self.folder_name}/epoch={epoch + 1}.pt", epoch)
 
+            # npt_logger.log_checkpoint()
             # Append the losses and gradient norms to the lists
             losses_dis_real.append(lossDisReal.detach().cpu().numpy())
             losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
@@ -271,7 +309,7 @@ class GAN(object):
 
 
         del self.target
-        del self.samplesScaled
+        # del self.samplesScaled
         del self.dataset
         del self.dataLoader
         # After training
@@ -298,6 +336,9 @@ class GAN(object):
         path.mkdir(exist_ok=True, parents=True)
         plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" /"Losses_and_GradientNorm.png")
         plt.close(fig)
+
+        # run.stop()
+
         del losses_dis_real
         del losses_dis_fake
         del losses_gen
