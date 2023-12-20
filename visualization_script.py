@@ -10,8 +10,8 @@ from scipy.stats import ks_2samp
 import torch
 import plotly.express as px
 import random
-from GAN_Philipp import generate_data_from_saved_model
-from philipp_main import create_training_dataframe
+from GAN_Philipp import generate_data_from_saved_model, GAN
+from philipp_main import create_training_dataframe, create_numpy_matrix_for_gan
 
 
 # matplotlib.use('Agg')
@@ -82,6 +82,20 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
     plt.ylabel('Principal Component 2')
     plt.legend()
     plt.savefig(output_path / f"PCA_{epoch}.png")
+
+
+def plot_average_week(synthetic_df, real_df, output_path, epoch: int):
+    numeric_cols = [col for col in real_df.columns if is_number(col)]
+    # group by weeks
+    week_groups_real = real_df.groupby(["week", "weekday"]).mean()
+    week_groups_synthetic = synthetic_df.groupby(["week", "weekday"]).mean()
+    fig = plt.figure()
+    ax = plt.gca()
+
+
+
+
+    pass
 
 
 def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: int):
@@ -306,6 +320,7 @@ def visualize_results_from_model_folder(
         feature_count,  # depends on the features selected in train_gan -> automate
         target_count,  # 24 if we trained on days
         n_profiles_trained_on,
+        scaled,
         device
 ):
     # visualize the training results:
@@ -316,13 +331,14 @@ def visualize_results_from_model_folder(
     hull = pd.read_parquet(Path(folder_path) / "hull.parquet.gzip")
     orig_meta_data = pd.read_parquet(Path(folder_path) / "meta_data.parquet.gzip")
     for model in file_names:
-        epoch = int(model.replace("epoch_", "").replace(".pt", ""))
+        epoch = int(model.replace("epoch=", "").replace(".pt", ""))
         synthetic_data = generate_data_from_saved_model(
             model_path=f"{folder_path}/{model}",
             noise_dim=noise_dimension,
             featureCount=feature_count,
             targetCount=target_count,
             original_features=orig_features,
+            scaled=scaled,
             device=device,
         )
 
@@ -343,59 +359,88 @@ def visualize_results_from_model_folder(
             label_csv_filename="DBSCAN_15_clusters_labels.csv",
             path_to_orig_file=Path(r"X:\projects4\workspace_danielh_pr4\GAN_data")
         )
+        if not scaled:
+            target, features, df_hull = create_numpy_matrix_for_gan(train_df.copy())
+            model = GAN(
+                name=folder_name.split("_")[0],
+                device=device,
+                batchSize=int([word for word in folder_name.split("_") if "BatchSize" in word][0].split("=")[1]),
+                target=target,
+                features=features,
+                dimNoise=int([word for word in folder_name.split("_") if "NoiseDim" in word][0].split("=")[1]),
+                featureCount=int([word for word in folder_name.split("_") if "FeatureCount" in word][0].split("=")[1]),
+                lr=1e-5,
+                maxNorm=1e6,
+                epochCount=epoch,
+                n_transformed_features=4,
+                n_number_features=1,
+                cluster_label=cluster_label,
+                cluster_algorithm=cluster_algorithm,
+                n_profiles_trained_on=len([col for col in train_df.columns if is_number(col)])
+            )
+            normalized_real = model.samplesScaled
+            df_real = numpy_matrix_to_pandas_table_with_metadata(
+                hull=hull,
+                synthetic_data=normalized_real,
+                original_meta_data=orig_meta_data
+            ).set_index("timestamp")
+        else:
+            df_real = train_df
 
-        plot_seasonal_daily_means(df_real=train_df,
+        plot_seasonal_daily_means(df_real=df_real,
                                   df_synthetic=df_synthetic,
                                   output_path=output_path,
                                   epoch_number=epoch)
 
-        plot_pca_analysis(real_data=train_df,
+        plot_pca_analysis(real_data=df_real,
                           synthetic_data=df_synthetic,
                           output_path=output_path,
                           epoch=epoch)
 
-        compare_peak_and_mean(real_data=train_df,
+        compare_peak_and_mean(real_data=df_real,
                               synthetic_data=df_synthetic,
                               output_path=output_path,
                               epoch=epoch)
 
-        compare_distributions(real_df=train_df,
+        compare_distributions(real_df=df_real,
                               synthetic_df=df_synthetic,
                               output_path=output_path,
                               epoch=epoch,
-                              bins=50)
+                              bins=25)
 
-        plotly_single_profiles(real_data=train_df,
-                               synthetic_data=df_synthetic,
-                               epoch=epoch)
+        # plotly_single_profiles(real_data=df_real,
+        #                        synthetic_data=df_synthetic,
+        #                        epoch=epoch)
 
 
 if __name__ == "__main__":
-    model_nickname = "model_test_philipp"
-    batch_size = 500
+    model_nickname = "ModelTestPhilipp"
+    batch_size = 1000
     noise_dim = 50
     feature_count = 5
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
-    n_profiles_trained_on = 10
+    n_profiles_trained_on = 100
     target_count = 24
     device = "cpu"
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
-                  f"clusterLabel={cluster_label}_" \
-                  f"n_profiles_trained_on={n_profiles_trained_on}_" \
-                  f"batchSize={batch_size}_" \
-                  f"featureCount={feature_count}_" \
-                  f"noise_dim={noise_dim}"
+                  f"ClusterLabel={cluster_label}_" \
+                  f"NProfilesTrainedOn={n_profiles_trained_on}_" \
+                  f"BatchSize={batch_size}_" \
+                  f"FeatureCount={feature_count}_" \
+                  f"NoiseDim={noise_dim}"
 
     model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
 
+    compare_scaled = False
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
         feature_count=feature_count,
         target_count=target_count,
         n_profiles_trained_on=n_profiles_trained_on,
+        scaled=compare_scaled,
         device=device
     )

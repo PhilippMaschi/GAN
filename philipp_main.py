@@ -174,7 +174,7 @@ def train_gan(
 
     featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
-    model_name = 'model_test_philipp'
+    model_name = 'ModelTestPhilipp'
     model = GAN(
         name=model_name,
         device=device,
@@ -219,10 +219,10 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 10  # kann None sein, dann werden alle Profile genommen
+    n_profiles = 100  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 500
-    epochs = 2000
+    batchSize = 1000
+    epochs = 5000
 
     train_df = create_training_dataframe(
         password_=password,

@@ -133,11 +133,11 @@ class GAN(object):
 
         self.folder_name = f"models/{self.name}_" \
                            f"Clustered={cluster_algorithm}_" \
-                           f"clusterLabel={cluster_label}_" \
-                           f"n_profiles_trained_on={n_profiles_trained_on}_" \
-                           f"batchSize={self.batchSize}_" \
-                           f"featureCount={self.featureCount}_" \
-                           f"noise_dim={self.dimNoise}"
+                           f"ClusterLabel={cluster_label}_" \
+                           f"NProfilesTrainedOn={n_profiles_trained_on}_" \
+                           f"BatchSize={self.batchSize}_" \
+                           f"FeatureCount={self.featureCount}_" \
+                           f"NoiseDim={self.dimNoise}"
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
@@ -182,10 +182,6 @@ class GAN(object):
                 'generator gradient norm'
             ])
         self.iterCount = 0
-        # if isinstance(self.testLabel, int):
-        #     self.noiseFixed = randn(self.exampleCount, self.dimLatent, device=device)
-        #     self.labelsFixed = full(size=(self.exampleCount,), fill_value=self.testLabel, device=self.device,
-        #                             dtype=torch.int32)
 
     def __labels__(self):
         return self.features
@@ -263,8 +259,8 @@ class GAN(object):
                 self.optimGen.step()
 
                 # save the model state every 500 epochs:
-                if (epoch + 1) % 500 == 0:
-                    self.save_model_state(f"{self.folder_name}/epoch_{epoch + 1}.pt", epoch)
+                if (epoch + 1) % 1000 == 0:
+                    self.save_model_state(f"{self.folder_name}/epoch={epoch + 1}.pt", epoch)
 
             # Append the losses and gradient norms to the lists
             losses_dis_real.append(lossDisReal.detach().cpu().numpy())
@@ -326,6 +322,7 @@ def generate_data_from_saved_model(
         featureCount: int,  # number of features that are added to noise vector
         targetCount: int,  # 24
         original_features: np.array,
+        scaled: bool = True,
         device='cpu'
 ):
     # Initialize the generator
@@ -340,7 +337,11 @@ def generate_data_from_saved_model(
         noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
         labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
         generated_samples = generator(noise, labels).detach().cpu().numpy()
-        scaled_samples = scaler.inverse_transform(generated_samples.T).T
+        if scaled:
+            scaled_samples = scaler.inverse_transform(generated_samples.T).T
+        else:
+            scaled_samples = generated_samples
+
     return scaled_samples
 
 
