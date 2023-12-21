@@ -179,6 +179,10 @@ class GAN(object):
             self.criterion = nn.BCELoss()
         elif self.lossFct == "MSE":
             self.criterion = nn.MSELoss()
+        elif self.lossFct == "KLDiv":
+            self.criterion = nn.KLDivLoss()
+        elif self.lossFct == "MAE":
+            self.criterion = nn.L1Loss()
         else:
             assert "loss function not identified"
         self.dis_loss_fct = nn.BCELoss()  # for discriminator always BCE?
@@ -218,6 +222,7 @@ class GAN(object):
         print(f"loaded model at epoch: {checkpoint['epoch']}")
 
     def train(self):
+        print(f"starting training for {self.folder_name}")
         # run = neptune.init_run(
         #     project="philmaschi/GAN",
         #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ZDE3NGVjNy1kZjdiLTQ1MzMtOGEzNi0yZDhlZjIxZjRjZGIifQ==",

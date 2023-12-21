@@ -224,8 +224,8 @@ if __name__ == "__main__":
     n_profiles = 100  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 1000
-    epochs = 500
-    Loss = "MSE"
+    epochs = 5000
+    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
 
     train_df = create_training_dataframe(
         password_=password,
