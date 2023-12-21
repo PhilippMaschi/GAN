@@ -371,23 +371,37 @@ def generate_data_from_saved_model(
         featureCount: int,  # number of features that are added to noise vector
         targetCount: int,  # 24
         original_features: np.array,
-        normalize: bool = True,
+        normalized: bool = False,
         device='cpu'
 ):
+    """
+
+    Args:
+        model_path:
+        noise_dim:
+        featureCount:
+        targetCount:
+        original_features:
+        normalized: if normalized the profiles are going to be between -1 and 1
+        device:
+
+    Returns:
+
+    """
     # Initialize the generator
     generator = Generator(noise_dim, featureCount, targetCount)
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
     generator.eval()
-    if normalize:
+    if not normalized:
         scaler = checkpoint["scaler"]
     # Generate the data
     with torch.no_grad():
         noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
         labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
         generated_samples = generator(noise, labels).detach().cpu().numpy()
-        if normalize:
+        if not normalized:
             scaled_samples = scaler.inverse_transform(generated_samples.T).T
         else:
             scaled_samples = generated_samples

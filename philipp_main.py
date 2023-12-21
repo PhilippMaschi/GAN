@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from pathlib import Path
-from GAN_Philipp import GAN, generate_data_from_saved_model
+from GAN_Philipp import GAN
 import argparse
 
 print(f'torch {torch.__version__}')

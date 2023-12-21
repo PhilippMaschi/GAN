@@ -10,9 +10,10 @@ from scipy.stats import ks_2samp
 import torch
 import plotly.express as px
 import random
-from GAN_Philipp import generate_data_from_saved_model, GAN
+from GAN_Philipp import generate_data_from_saved_model, MinMaxScaler
 from philipp_main import create_training_dataframe, create_numpy_matrix_for_gan
 import seaborn as sns
+
 
 
 # matplotlib.use('Agg')
@@ -347,6 +348,21 @@ def visualize_results_from_model_folder(
         device,
         loss,
 ):
+    """
+
+    Args:
+        folder_path:
+        noise_dimension:
+        feature_count:
+        target_count:
+        n_profiles_trained_on:
+        normalize: if normalized than the comparison is done on profiles between -1 and 1
+        device: cpu or cuda:0
+        loss:
+
+    Returns:
+
+    """
     # visualize the training results:
     file_names = [file.name for file in Path(folder_path).glob("*.pt")]
     file_names.sort()
@@ -362,7 +378,7 @@ def visualize_results_from_model_folder(
             featureCount=feature_count,
             targetCount=target_count,
             original_features=orig_features,
-            normalize=normalize,
+            normalized=normalize,
             device=device,
         )
 
@@ -383,30 +399,13 @@ def visualize_results_from_model_folder(
             label_csv_filename="DBSCAN_15_clusters_labels.csv",
             path_to_orig_file=Path(folder_path).parent.parent.parent / "GAN_data"
         )
-        if not normalize:
+        if normalize:
             target, features, df_hull = create_numpy_matrix_for_gan(train_df.copy())
-            model = GAN(
-                name=folder_name.split("_")[0],
-                device=device,
-                batchSize=int([word for word in folder_name.split("_") if "BatchSize" in word][0].split("=")[1]),
-                target=target,
-                features=features,
-                dimNoise=int([word for word in folder_name.split("_") if "NoiseDim" in word][0].split("=")[1]),
-                featureCount=int([word for word in folder_name.split("_") if "FeatureCount" in word][0].split("=")[1]),
-                lr=1e-5,
-                maxNorm=1e6,
-                epochCount=epoch,
-                n_transformed_features=4,
-                n_number_features=1,
-                cluster_label=cluster_label,
-                cluster_algorithm=cluster_algorithm,
-                n_profiles_trained_on=len([col for col in train_df.columns if is_number(col)]),
-                LossFct=loss,
-            )
-            normalized_real = model.samplesScaled
+            scaler = MinMaxScaler(feature_range=(-1, 1))
+            samplesScaled = scaler.fit_transform(target.T).T
             df_real = numpy_matrix_to_pandas_table_with_metadata(
                 hull=hull,
-                synthetic_data=normalized_real,
+                synthetic_data=samplesScaled,
                 original_meta_data=orig_meta_data
             ).set_index("timestamp")
         else:
@@ -452,7 +451,7 @@ if __name__ == "__main__":
     n_profiles_trained_on = 100
     target_count = 24
     device = "cuda:0"
-    loss = "MSE"
+    loss = "BCE"
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
