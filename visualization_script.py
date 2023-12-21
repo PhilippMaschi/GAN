@@ -12,6 +12,7 @@ import plotly.express as px
 import random
 from GAN_Philipp import generate_data_from_saved_model, GAN
 from philipp_main import create_training_dataframe, create_numpy_matrix_for_gan
+import seaborn as sns
 
 
 # matplotlib.use('Agg')
@@ -87,15 +88,36 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
 def plot_average_week(synthetic_df, real_df, output_path, epoch: int):
     numeric_cols = [col for col in real_df.columns if is_number(col)]
     # group by weeks
-    week_groups_real = real_df.groupby(["week", "weekday"]).mean()
-    week_groups_synthetic = synthetic_df.groupby(["week", "weekday"]).mean()
-    fig = plt.figure()
-    ax = plt.gca()
+    season_groups_real = real_df.groupby("meteorological season")
+    season_groups_synthetic = synthetic_df.groupby("meteorological season")
+    seasons = real_df["meteorological season"].unique()
 
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 6), sharey=True)
+    axes = axes.flatten()
+    weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    for i, season in enumerate(seasons):
+        ax = axes[i]
+        season_real = season_groups_real.get_group(season)[["weekday"] + numeric_cols]
+        season_synthetic = season_groups_synthetic.get_group(season)[["weekday"] + numeric_cols]
+        season_real_melt = season_real.melt(id_vars="weekday", var_name="profiles", value_name="load (Wh)")
+        season_real_melt.loc[:, "type"] = "real"
+        season_synthetic_melt = season_synthetic.melt(id_vars="weekday", var_name="profiles", value_name="load (Wh)")
+        season_synthetic_melt.loc[:, "type"] = "synthetic"
+        plot_df = pd.concat([season_real_melt, season_synthetic_melt], axis=0)
+        sns.boxplot(
+            data=plot_df,
+            x="weekday",
+            y="load (Wh)",
+            ax=ax,
+            hue="type",
+            order=weekday_order
+        )
+        ax.set_title(f"{season}")
 
+    plt.suptitle(f"Epoch: {epoch}")
+    plt.tight_layout()
+    plt.savefig(output_path / f"Weekly_load_{epoch}.png")
 
-
-    pass
 
 
 def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: int):
@@ -217,7 +239,7 @@ def plot_seasonal_daily_means(df_real: pd.DataFrame,
         ax.legend()
         # plt.xticks(range(0, 24))
         # ax.grid(True)
-    plt.title(f"epoch: {epoch_number}")
+    plt.suptitle(f"epoch: {epoch_number}")
     plt.tight_layout()
     fig.savefig(output_path / f"Daily_Mean_Comparison_{epoch_number}.png")
     plt.close(fig)
@@ -320,16 +342,17 @@ def visualize_results_from_model_folder(
         feature_count,  # depends on the features selected in train_gan -> automate
         target_count,  # 24 if we trained on days
         n_profiles_trained_on,
-        scaled,
-        device
+        normalize,
+        device,
+        loss,
 ):
     # visualize the training results:
     file_names = [file.name for file in Path(folder_path).glob("*.pt")]
     file_names.sort()
 
-    orig_features = np.load(Path(folder_path) / "original_features.npy")
-    hull = pd.read_parquet(Path(folder_path) / "hull.parquet.gzip")
-    orig_meta_data = pd.read_parquet(Path(folder_path) / "meta_data.parquet.gzip")
+    orig_features = np.load(folder_path / "original_features.npy")
+    hull = pd.read_parquet(folder_path / "hull.parquet.gzip")
+    orig_meta_data = pd.read_parquet(folder_path / "meta_data.parquet.gzip")
     for model in file_names:
         epoch = int(model.replace("epoch=", "").replace(".pt", ""))
         synthetic_data = generate_data_from_saved_model(
@@ -338,7 +361,7 @@ def visualize_results_from_model_folder(
             featureCount=feature_count,
             targetCount=target_count,
             original_features=orig_features,
-            scaled=scaled,
+            normalize=normalize,
             device=device,
         )
 
@@ -357,9 +380,9 @@ def visualize_results_from_model_folder(
             clusterLabel=cluster_label,
             number_of_profiles=n_profiles_trained_on,
             label_csv_filename="DBSCAN_15_clusters_labels.csv",
-            path_to_orig_file=Path(r"X:\projects4\workspace_danielh_pr4\GAN_data")
+            path_to_orig_file=Path(folder_path).parent.parent.parent / "GAN_data"
         )
-        if not scaled:
+        if normalize:
             target, features, df_hull = create_numpy_matrix_for_gan(train_df.copy())
             model = GAN(
                 name=folder_name.split("_")[0],
@@ -376,7 +399,8 @@ def visualize_results_from_model_folder(
                 n_number_features=1,
                 cluster_label=cluster_label,
                 cluster_algorithm=cluster_algorithm,
-                n_profiles_trained_on=len([col for col in train_df.columns if is_number(col)])
+                n_profiles_trained_on=len([col for col in train_df.columns if is_number(col)]),
+                LossFct=loss,
             )
             normalized_real = model.samplesScaled
             df_real = numpy_matrix_to_pandas_table_with_metadata(
@@ -426,8 +450,8 @@ if __name__ == "__main__":
     cluster_label = 0
     n_profiles_trained_on = 100
     target_count = 24
-    device = "cpu"
-    loss = "MSE"
+    device = "cuda:0"
+    loss = "BCE"
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
@@ -438,15 +462,17 @@ if __name__ == "__main__":
                   f"NoiseDim={noise_dim}_" \
                   f"Loss={loss}"
 
-    model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
+    # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
+    model_folder = Path(__file__).absolute().parent / folder_name
 
-    compare_scaled = True
+    normalize = False
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
         feature_count=feature_count,
         target_count=target_count,
         n_profiles_trained_on=n_profiles_trained_on,
-        scaled=compare_scaled,
-        device=device
+        normalize=normalize,
+        device=device,
+        loss=loss
     )
