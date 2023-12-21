@@ -135,6 +135,7 @@ class GAN(object):
         self.lr = lr
         self.maxNorm = maxNorm
         self.epochCount = epochCount
+        self.lossFct = LossFct
 
         self.folder_name = f"models/{self.name}_" \
                            f"Clustered={cluster_algorithm}_" \
@@ -143,19 +144,19 @@ class GAN(object):
                            f"BatchSize={self.batchSize}_" \
                            f"FeatureCount={self.featureCount}_" \
                            f"NoiseDim={self.dimNoise}_" \
-                           f"Loss={LossFct}"
+                           f"Loss={self.lossFct}"
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
-        for file in Path(self.folder_name).iterdir():
-            file.unlink()
+        # for file in Path(self.folder_name).iterdir():
+        #     file.unlink()
         self.n_transformed_features = n_transformed_features
         self.n_number_features = n_number_features
 
         # Scale data and create dataLoader
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
-        # self.samplesScaled = self.scaler.fit_transform(target.T).T
-        target_tensor = torch.Tensor(self.target)#self.samplesScaled)
+        self.samplesScaled = self.scaler.fit_transform(target.T).T
+        target_tensor = torch.Tensor(self.samplesScaled)
         features_tensor = torch.Tensor(self.features)
         self.dataset = MyDataset(target_tensor, features_tensor)
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
@@ -174,7 +175,13 @@ class GAN(object):
         self.optimDis = optim.Adam(params=self.Dis.parameters(), lr=self.lr)
 
         # Initialize the loss function
-        self.criterion = nn.MSELoss()  #nn.BCELoss()
+        if self.lossFct == "BCE":
+            self.criterion = nn.BCELoss()
+        elif self.lossFct == "MSE":
+            self.criterion = nn.MSELoss()
+        else:
+            assert "loss function not identified"
+        self.dis_loss_fct = nn.BCELoss()  # for discriminator always BCE?
 
         self.df_loss = pd.DataFrame(
             columns=[
@@ -230,7 +237,7 @@ class GAN(object):
             "model_filename": self.name,
             "device": self.device,
             "epochs": self.epochCount,
-            "loss": "MSE"
+            "loss": self.lossFct
         }
         # run[npt_logger.base_namespace]["hyperparams"] = stringify_unsupported(parameters)
 
@@ -254,7 +261,8 @@ class GAN(object):
                                  fill_value=1,
                                  device=self.device,
                                  dtype=torch.float32)  # Column vector a tensor containing only ones
-                lossDisReal = nn.BCELoss(yReal, labelReal)  # calculate the loss of Dis : Single number
+
+                lossDisReal = self.dis_loss_fct(yReal, labelReal)  # calculate the loss of Dis : Single number
                 lossDisReal.backward()  # calculate new gradients
                 # Train discriminator with fake data
                 # create a tensor filled with random numbers rows: Number of days, column dimLatent
@@ -269,7 +277,7 @@ class GAN(object):
                 # create fake data from noise + random labels with generator
                 xFake = self.Gen(noise, randomLabelFake)
                 yFake = self.Dis(xFake.detach())  # let the discriminator label the fake data
-                lossDisFake = nn.BCELoss(yFake, labelFake)
+                lossDisFake = self.dis_loss_fct(yFake, labelFake)
                 lossDisFake.backward()
 
                 # lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
@@ -309,7 +317,7 @@ class GAN(object):
 
 
         del self.target
-        # del self.samplesScaled
+        del self.samplesScaled
         del self.dataset
         del self.dataLoader
         # After training
@@ -334,7 +342,7 @@ class GAN(object):
         plt.tight_layout()
         path = Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}"
         path.mkdir(exist_ok=True, parents=True)
-        plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" /"Losses_and_GradientNorm.png")
+        plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" / "Losses_and_GradientNorm.png")
         plt.close(fig)
 
         # run.stop()
@@ -363,7 +371,7 @@ def generate_data_from_saved_model(
         featureCount: int,  # number of features that are added to noise vector
         targetCount: int,  # 24
         original_features: np.array,
-        scaled: bool = True,
+        normalize: bool = True,
         device='cpu'
 ):
     # Initialize the generator
@@ -372,13 +380,14 @@ def generate_data_from_saved_model(
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
     generator.eval()
-    scaler = checkpoint["scaler"]
+    if normalize:
+        scaler = checkpoint["scaler"]
     # Generate the data
     with torch.no_grad():
         noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
         labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
         generated_samples = generator(noise, labels).detach().cpu().numpy()
-        if scaled:
+        if normalize:
             scaled_samples = scaler.inverse_transform(generated_samples.T).T
         else:
             scaled_samples = generated_samples

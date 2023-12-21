@@ -110,7 +110,8 @@ def plot_average_week(synthetic_df, real_df, output_path, epoch: int):
             y="load (Wh)",
             ax=ax,
             hue="type",
-            order=weekday_order
+            order=weekday_order,
+            showfliers=False
         )
         ax.set_title(f"{season}")
 
@@ -249,7 +250,7 @@ def compare_distributions(real_df,
                           synthetic_df,
                           output_path: Path,
                           epoch: int,
-                          bins=50, ):
+                          bins=100, ):
     """
     Compares the distributions of columns in two dataframes using histogram comparison
     and the Kolmogorov-Smirnov test.
@@ -382,7 +383,7 @@ def visualize_results_from_model_folder(
             label_csv_filename="DBSCAN_15_clusters_labels.csv",
             path_to_orig_file=Path(folder_path).parent.parent.parent / "GAN_data"
         )
-        if normalize:
+        if not normalize:
             target, features, df_hull = create_numpy_matrix_for_gan(train_df.copy())
             model = GAN(
                 name=folder_name.split("_")[0],
@@ -433,7 +434,7 @@ def visualize_results_from_model_folder(
                               synthetic_df=df_synthetic,
                               output_path=output_path,
                               epoch=epoch,
-                              bins=25)
+                              bins=100)
 
 
         # plotly_single_profiles(real_data=df_real,
@@ -451,7 +452,7 @@ if __name__ == "__main__":
     n_profiles_trained_on = 100
     target_count = 24
     device = "cuda:0"
-    loss = "BCE"
+    loss = "MSE"
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
@@ -465,7 +466,7 @@ if __name__ == "__main__":
     # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
     model_folder = Path(__file__).absolute().parent / folder_name
 
-    normalize = False
+    normalize = True
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
