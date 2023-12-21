@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from pathlib import Path
-from GAN_Philipp import GAN
+from GAN_Philipp import GAN, train_gan
 import argparse
 
 print(f'torch {torch.__version__}')
@@ -150,7 +150,7 @@ def create_training_dataframe(password_,
     return training_df
 
 
-def train_gan(
+def train(
         batchSize: int,
         dimNoise: int,
         training_df: pd.DataFrame,
@@ -176,7 +176,7 @@ def train_gan(
     featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
     model_name = 'ModelTestPhilipp'
-    model = GAN(
+    model = train_gan(
         name=model_name,
         device=device,
         batchSize=batchSize,
@@ -202,7 +202,7 @@ def train_gan(
     orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
 
-    model.train()
+    # model.train()
     print(f"Training {model.folder_name} done""")
 
 
@@ -221,10 +221,10 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 100  # kann None sein, dann werden alle Profile genommen
+    n_profiles = 10  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 1000
-    epochs = 5000
+    epochs = 10
     Loss = "BCE"  # BCE, MSE, KLDiv, MAE
 
     train_df = create_training_dataframe(
@@ -234,7 +234,7 @@ if __name__ == "__main__":
         label_csv_filename="DBSCAN_15_clusters_labels.csv",
     )
 
-    train_gan(
+    train(
         batchSize=batchSize,
         dimNoise=noise_dimension,
         training_df=train_df,

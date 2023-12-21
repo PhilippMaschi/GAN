@@ -440,9 +440,9 @@ def visualize_results_from_model_folder(
                               bins=100)
 
 
-        # plotly_single_profiles(real_data=df_real,
-        #                        synthetic_data=df_synthetic,
-        #                        epoch=epoch)
+        plotly_single_profiles(real_data=df_real,
+                               synthetic_data=df_synthetic,
+                               epoch=epoch)
 
 
 if __name__ == "__main__":
@@ -454,7 +454,7 @@ if __name__ == "__main__":
     cluster_label = 0
     n_profiles_trained_on = 100
     target_count = 24
-    device = "cuda:0"
+    device = "cpu"
     loss = "KLDiv"   # BCE, MSE, KLDiv, MAE
 
     folder_name = f"models/{model_nickname}_" \
@@ -466,10 +466,10 @@ if __name__ == "__main__":
                   f"NoiseDim={noise_dim}_" \
                   f"Loss={loss}"
     print(f"visualization for {folder_name}")
-    # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / folder_name
-    model_folder = Path(__file__).absolute().parent / folder_name
+    model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
+    # model_folder = Path(__file__).absolute().parent / folder_name
 
-    normalize = True
+    normalize = False
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
