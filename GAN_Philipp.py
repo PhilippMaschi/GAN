@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from time import perf_counter
 from pathlib import Path
+import pytorch_lightning as pl
 import matplotlib
 matplotlib.use('Agg')
 # from neptune_pytorch import NeptuneLogger
@@ -105,25 +106,11 @@ class Discriminator(nn.Module):
         return self.model(data)
 
 
-class GAN(object):
-    def __init__(self,
-                 name,
-                 device,
-                 batchSize,
-                 target,  # train data
-                 features,  # labels
-                 dimNoise,  # noise vector size
-                 featureCount,  # anzahl der features
-                 lr,
-                 maxNorm,
-                 epochCount,
-                 n_transformed_features: int,  # anzahl an sin cos transformierten variablen (1 variable wird zu 2 (sin + cos))
-                 n_number_features: int,   # anzahl der features (labels) die nicht transformiert werden
-                 cluster_label: int,  # label of the cluster
-                 cluster_algorithm: str,
-                 n_profiles_trained_on: int,
-                 LossFct: str
-                 ):
+class GAN(pl.LightningModule):
+    def __init__(self, name, device, batchSize, target, features, dimNoise, featureCount, lr, maxNorm, epochCount,
+                 n_transformed_features: int, n_number_features: int, cluster_label: int, cluster_algorithm: str,
+                 n_profiles_trained_on: int, LossFct: str):
+        super(GAN, self).__init__()
         self.name = name
         self.device = device
         self.batchSize = batchSize
@@ -161,9 +148,8 @@ class GAN(object):
         self.dataset = MyDataset(target_tensor, features_tensor)
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
 
-        # Initialize generator
-        self.Gen = Generator(self.dimNoise, self.featureCount, self.target.shape[
-            1])  # input is noise + labels (dimLatent) and output is 24 (target shape)
+        # Initialize generator, input is noise + labels (dimLatent) and output is 24 (target shape)
+        self.Gen = Generator(self.dimNoise, self.featureCount, self.target.shape[1])
         self.Gen.to(self.device)
 
         # Initialize discriminator
@@ -221,142 +207,207 @@ class GAN(object):
         self.optimDis.load_state_dict(checkpoint['optimizer_dis_state_dict'])
         print(f"loaded model at epoch: {checkpoint['epoch']}")
 
-    def train(self):
-        print(f"starting training for {self.folder_name}")
-        # run = neptune.init_run(
-        #     project="philmaschi/GAN",
-        #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ZDE3NGVjNy1kZjdiLTQ1MzMtOGEzNi0yZDhlZjIxZjRjZGIifQ==",
-        # )
-        # npt_logger = NeptuneLogger(
-        #     run=run,
-        #     model=self.Gen,
-        #     log_model_diagram=True,
-        #     log_gradients=True,
-        #     log_parameters=True,
-        #     log_freq=30,
-        # )
-        parameters = {
-            "lr": self.lr,
-            "BatchSize": self.batchSize,
-            "NoiseDim": self.dimNoise,
-            "model_filename": self.name,
-            "device": self.device,
-            "epochs": self.epochCount,
-            "loss": self.lossFct
-        }
-        # run[npt_logger.base_namespace]["hyperparams"] = stringify_unsupported(parameters)
+    def configure_optimizers(self):
+        opt_gen = optim.Adam(self.gen.parameters(), lr=self.lr)
+        opt_dis = optim.Adam(self.dis.parameters(), lr=self.lr)
+        return [opt_gen, opt_dis], []
 
-        losses_dis_real = []
-        losses_dis_fake = []
-        losses_gen = []
-        grad_norms_dis = []
-        grad_norms_gen = []
-        for epoch in tqdm(range(self.epochCount)):
-            for batchIdx, (data, label) in enumerate(self.dataLoader):  # target = actual (real) label
-                # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
-                target_to = data.to(device=self.device, dtype=torch.float32)
-                # Index column vector: rows are days x profiles (as provoded by dataLoader => length Batchsize))
-                feature_to = label.to(device=self.device, dtype=torch.float32)
+    def train_discriminator(self, real_data, labels):
+        # Train discriminator with real data
+        self.Dis.zero_grad()  # set the gradients to zero for every mini-batch
+        # yReal: length as target train discriminator with real data, row vector: number of days x profiles
+        yReal = self.Dis(real_data)
+        labelReal = full(size=(labels.size(0), 1),
+                         fill_value=1,
+                         device=self.device,
+                         dtype=torch.float32)  # Column vector a tensor containing only ones
 
-                # Train discriminator with real data
-                self.Dis.zero_grad()  # set the gradients to zero for every mini-batch
-                # yReal: length as target train discriminator with real data, row vector: number of days x profiles
-                yReal = self.Dis(target_to)
-                labelReal = full(size=(target_to.size(0), 1),
-                                 fill_value=1,
-                                 device=self.device,
-                                 dtype=torch.float32)  # Column vector a tensor containing only ones
+        lossDisReal = self.dis_loss_fct(yReal, labelReal)  # calculate the loss of Dis : Single number
 
-                lossDisReal = self.dis_loss_fct(yReal, labelReal)  # calculate the loss of Dis : Single number
-                lossDisReal.backward()  # calculate new gradients
-                # Train discriminator with fake data
-                # create a tensor filled with random numbers rows: Number of days, column dimLatent
-                noise = randn(target_to.shape[0], self.dimNoise, device=self.device)
-                # random labels needed in addition to the noise
-                first_columns = torch.rand(feature_to.shape[0], self.n_transformed_features, device=self.device) * 2 - 1
-                second_columns = torch.randint(0, 2, (feature_to.shape[0], self.n_number_features), device=self.device,
-                                               dtype=torch.float32)
-                randomLabelFake = torch.cat((first_columns, second_columns), dim=1)
-                # a tensor containing only zeros
-                labelFake = full(size=(target_to.size(0), 1), fill_value=0, device=self.device, dtype=torch.float32)
-                # create fake data from noise + random labels with generator
-                xFake = self.Gen(noise, randomLabelFake)
-                yFake = self.Dis(xFake.detach())  # let the discriminator label the fake data
-                lossDisFake = self.dis_loss_fct(yFake, labelFake)
-                lossDisFake.backward()
+        self.log("train_loss_disc_real", lossDisReal)
 
-                # lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
-                # gradient clipping (large max_norm to avoid actual clipping)
-                grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm=self.maxNorm)
-                self.optimDis.step()  # update the discriminator
+        # Train with fake data
+        noise = torch.randn(real_data.shape[0], self.dimNoise, device=self.device)
+        # Generate fake labels as in your original code
+        first_columns = torch.rand(labels.shape[0], self.n_transformed_features, device=self.device) * 2 - 1
+        second_columns = torch.randint(0, 2, (labels.shape[0], self.n_number_features), device=self.device,
+                                       dtype=torch.float32)
+        fake_labels = torch.cat((first_columns, second_columns), dim=1)
 
-                # Train generator (now that we fed the discriminator with fake data)
-                self.Gen.zero_grad()
-                # let the discriminator label the fake data (now that the discriminator is updated)
-                yFake_2 = self.Dis(xFake)
-                # calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
-                lossGen = self.criterion(yFake_2, labelReal)
-                lossGen.backward()
-                grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
-                self.optimGen.step()
+        fake_data = self.gen(noise, fake_labels)
+        fake_labels = torch.full((real_data.size(0), 1), 0., device=self.device)
+        fake_output = self.dis(fake_data.detach())
+        fake_loss = self.dis_loss_fct(fake_output, fake_labels)
+        self.log('train_loss_disc_fake', fake_loss)
 
-                # save the model state every 500 epochs:
-                # Log after every 30 steps
-                # if batchIdx % 30 == 0:
-                #     run[npt_logger.base_namespace]["batch/lossDisReal"].append(lossDisReal.item())
-                #     run[npt_logger.base_namespace]["batch/lossDisFake"].append(lossDisReal.item())
-                #     run[npt_logger.base_namespace]["batch/lossGen"].append(lossGen.item())
-                #     run[npt_logger.base_namespace]["batch/grad_norm_gen"].append(grad_norm_gen.item())
-                #     run[npt_logger.base_namespace]["batch/grad_norm_dis"].append(grad_norm_dis.item())
+        # Combine losses
+        discriminator_loss = lossDisReal + fake_loss
+        self.log('train_loss_disc', discriminator_loss)
+        return discriminator_loss
 
-                if (epoch + 1) % 500 == 0:
-                    self.save_model_state(f"{self.folder_name}/epoch={epoch + 1}.pt", epoch)
+    def train_generator(self, labels):
+        noise = torch.randn(labels.shape[0], self.dimNoise, device=self.device)
+        # Generate fake labels as in your original code
+        first_columns = torch.rand(labels.shape[0], self.n_transformed_features, device=self.device) * 2 - 1
+        second_columns = torch.randint(0, 2, (labels.shape[0], self.n_number_features), device=self.device,
+                                       dtype=torch.float32)
+        fake_labels = torch.cat((first_columns, second_columns), dim=1)
 
-            # npt_logger.log_checkpoint()
-            # Append the losses and gradient norms to the lists
-            losses_dis_real.append(lossDisReal.detach().cpu().numpy())
-            losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
-            losses_gen.append(lossGen.detach().cpu().numpy())
-            grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
-            grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
+        fake_data = self.gen(noise, fake_labels)
+        real_labels = torch.full((labels.size(0), 1), 1., device=self.device)
+        output = self.dis(fake_data)
+        generator_loss = self.criterion(output, real_labels)
+        self.log('train_loss_gen', generator_loss)
+        return generator_loss
 
+    def training_step(self, batch, batchidx, optimizer_idx):
+        real_data, labels = batch
 
-        del self.target
-        del self.samplesScaled
-        del self.dataset
-        del self.dataLoader
-        # After training
-        fig = plt.figure(figsize=(12, 8))
-        plt.subplot(2, 1, 1)
-        plt.plot(losses_dis_real, label='Discriminator Loss - Real')
-        plt.plot(losses_dis_fake, label='Discriminator Loss - Fake')
-        plt.plot(losses_gen, label='Generator Loss')
-        plt.xlabel('Iterations')
-        plt.ylabel('Loss')
-        plt.title('Training Losses')
-        plt.legend()
+        if optimizer_idx == 0:
+            return self.train_discriminator
 
-        plt.subplot(2, 1, 2)
-        plt.plot(grad_norms_dis, label='Discriminator Gradient Norm')
-        plt.plot(grad_norms_gen, label='Generator Gradient Norm')
-        plt.xlabel('Iterations')
-        plt.ylabel('Gradient Norm')
-        plt.title('Gradient Norms During Training')
-        plt.legend()
+        # Training Generator
+        if optimizer_idx == 1:
+            generator_loss = self.train_generator(labels)
+            return generator_loss
 
-        plt.tight_layout()
-        path = Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}"
-        path.mkdir(exist_ok=True, parents=True)
-        plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" / "Losses_and_GradientNorm.png")
-        plt.close(fig)
-
-        # run.stop()
-
-        del losses_dis_real
-        del losses_dis_fake
-        del losses_gen
-        del grad_norms_dis
-        del grad_norms_gen
+    # def train(self):
+    #     print(f"starting training for {self.folder_name}")
+    #     # run = neptune.init_run(
+    #     #     project="philmaschi/GAN",
+    #     #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5ZDE3NGVjNy1kZjdiLTQ1MzMtOGEzNi0yZDhlZjIxZjRjZGIifQ==",
+    #     # )
+    #     # npt_logger = NeptuneLogger(
+    #     #     run=run,
+    #     #     model=self.Gen,
+    #     #     log_model_diagram=True,
+    #     #     log_gradients=True,
+    #     #     log_parameters=True,
+    #     #     log_freq=30,
+    #     # )
+    #     parameters = {
+    #         "lr": self.lr,
+    #         "BatchSize": self.batchSize,
+    #         "NoiseDim": self.dimNoise,
+    #         "model_filename": self.name,
+    #         "device": self.device,
+    #         "epochs": self.epochCount,
+    #         "loss": self.lossFct
+    #     }
+    #     # run[npt_logger.base_namespace]["hyperparams"] = stringify_unsupported(parameters)
+    #
+    #     losses_dis_real = []
+    #     losses_dis_fake = []
+    #     losses_gen = []
+    #     grad_norms_dis = []
+    #     grad_norms_gen = []
+    #     for epoch in tqdm(range(self.epochCount)):
+    #         for batchIdx, (data, label) in enumerate(self.dataLoader):  # target = actual (real) label
+    #             # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
+    #             target_to = data.to(device=self.device, dtype=torch.float32)
+    #             # Index column vector: rows are days x profiles (as provoded by dataLoader => length Batchsize))
+    #             feature_to = label.to(device=self.device, dtype=torch.float32)
+    #
+    #             # Train discriminator with real data
+    #             self.Dis.zero_grad()  # set the gradients to zero for every mini-batch
+    #             # yReal: length as target train discriminator with real data, row vector: number of days x profiles
+    #             yReal = self.Dis(target_to)
+    #             labelReal = full(size=(target_to.size(0), 1),
+    #                              fill_value=1,
+    #                              device=self.device,
+    #                              dtype=torch.float32)  # Column vector a tensor containing only ones
+    #
+    #             lossDisReal = self.dis_loss_fct(yReal, labelReal)  # calculate the loss of Dis : Single number
+    #             lossDisReal.backward()  # calculate new gradients
+    #
+    #             # Train discriminator with fake data
+    #             # create a tensor filled with random numbers rows: Number of days, column dimLatent
+    #             noise = randn(target_to.shape[0], self.dimNoise, device=self.device)
+    #             # random labels needed in addition to the noise
+    #             first_columns = torch.rand(feature_to.shape[0], self.n_transformed_features, device=self.device) * 2 - 1
+    #             second_columns = torch.randint(0, 2, (feature_to.shape[0], self.n_number_features), device=self.device,
+    #                                            dtype=torch.float32)
+    #             randomLabelFake = torch.cat((first_columns, second_columns), dim=1)
+    #             # a tensor containing only zeros
+    #             labelFake = full(size=(target_to.size(0), 1), fill_value=0, device=self.device, dtype=torch.float32)
+    #             # create fake data from noise + random labels with generator
+    #             xFake = self.Gen(noise, randomLabelFake)
+    #             yFake = self.Dis(xFake.detach())  # let the discriminator label the fake data
+    #             lossDisFake = self.dis_loss_fct(yFake, labelFake)
+    #             lossDisFake.backward()
+    #
+    #             # lossDis = (lossDisReal + lossDisFake)  # compute the total discriminator loss
+    #             # gradient clipping (large max_norm to avoid actual clipping)
+    #             grad_norm_dis = torch.nn.utils.clip_grad_norm_(self.Dis.parameters(), max_norm=self.maxNorm)
+    #             self.optimDis.step()  # update the discriminator
+    #
+    #             # Train generator (now that we fed the discriminator with fake data)
+    #             self.Gen.zero_grad()
+    #             # let the discriminator label the fake data (now that the discriminator is updated)
+    #             yFake_2 = self.Dis(xFake)
+    #             # calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
+    #             lossGen = self.criterion(yFake_2, labelReal)
+    #             lossGen.backward()
+    #             grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
+    #             self.optimGen.step()
+    #
+    #             # save the model state every 500 epochs:
+    #             # Log after every 30 steps
+    #             # if batchIdx % 30 == 0:
+    #             #     run[npt_logger.base_namespace]["batch/lossDisReal"].append(lossDisReal.item())
+    #             #     run[npt_logger.base_namespace]["batch/lossDisFake"].append(lossDisReal.item())
+    #             #     run[npt_logger.base_namespace]["batch/lossGen"].append(lossGen.item())
+    #             #     run[npt_logger.base_namespace]["batch/grad_norm_gen"].append(grad_norm_gen.item())
+    #             #     run[npt_logger.base_namespace]["batch/grad_norm_dis"].append(grad_norm_dis.item())
+    #
+    #             if (epoch + 1) % 500 == 0:
+    #                 self.save_model_state(f"{self.folder_name}/epoch={epoch + 1}.pt", epoch)
+    #
+    #         # npt_logger.log_checkpoint()
+    #         # Append the losses and gradient norms to the lists
+    #         losses_dis_real.append(lossDisReal.detach().cpu().numpy())
+    #         losses_dis_fake.append(lossDisFake.detach().cpu().numpy())
+    #         losses_gen.append(lossGen.detach().cpu().numpy())
+    #         grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
+    #         grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
+    #
+    #
+    #     del self.target
+    #     del self.samplesScaled
+    #     del self.dataset
+    #     del self.dataLoader
+    #     # After training
+    #     fig = plt.figure(figsize=(12, 8))
+    #     plt.subplot(2, 1, 1)
+    #     plt.plot(losses_dis_real, label='Discriminator Loss - Real')
+    #     plt.plot(losses_dis_fake, label='Discriminator Loss - Fake')
+    #     plt.plot(losses_gen, label='Generator Loss')
+    #     plt.xlabel('Iterations')
+    #     plt.ylabel('Loss')
+    #     plt.title('Training Losses')
+    #     plt.legend()
+    #
+    #     plt.subplot(2, 1, 2)
+    #     plt.plot(grad_norms_dis, label='Discriminator Gradient Norm')
+    #     plt.plot(grad_norms_gen, label='Generator Gradient Norm')
+    #     plt.xlabel('Iterations')
+    #     plt.ylabel('Gradient Norm')
+    #     plt.title('Gradient Norms During Training')
+    #     plt.legend()
+    #
+    #     plt.tight_layout()
+    #     path = Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}"
+    #     path.mkdir(exist_ok=True, parents=True)
+    #     plt.savefig(Path(__file__).parent / "plots" / f"{Path(self.folder_name).stem}" / "Losses_and_GradientNorm.png")
+    #     plt.close(fig)
+    #
+    #     # run.stop()
+    #
+    #     del losses_dis_real
+    #     del losses_dis_fake
+    #     del losses_gen
+    #     del grad_norms_dis
+    #     del grad_norms_gen
 
     def generate_sample(self, labels: np.array):
         with torch.no_grad():
