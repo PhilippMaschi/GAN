@@ -67,7 +67,7 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
     principal_components = pca.fit_transform(standardized_data)
 
     # Plotting the PCA
-    plt.figure(figsize=(10, 7))
+    fig = plt.figure(figsize=(10, 7))
     plt.scatter(principal_components[labels == 'Real', 0],
                 principal_components[labels == 'Real', 1],
                 alpha=0.3,
@@ -84,6 +84,7 @@ def plot_pca_analysis(real_data, synthetic_data, output_path: Path, epoch: int):
     plt.ylabel('Principal Component 2')
     plt.legend()
     plt.savefig(output_path / f"PCA_{epoch}.png")
+    plt.close(fig)
 
 
 def plot_average_week(synthetic_df, real_df, output_path, epoch: int):
@@ -119,6 +120,7 @@ def plot_average_week(synthetic_df, real_df, output_path, epoch: int):
     plt.suptitle(f"Epoch: {epoch}")
     plt.tight_layout()
     plt.savefig(output_path / f"Weekly_load_{epoch}.png")
+    plt.close(fig)
 
 
 
@@ -140,7 +142,7 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: i
     synthetic_means = synthetic.mean()
 
     # Plotting peak values
-    plt.figure(figsize=(10, 7))
+    fig = plt.figure(figsize=(10, 7))
     plt.plot(real_peaks, label='Real Peaks', color='blue')
     plt.plot(synthetic_peaks, label='Synthetic Peaks', color='red')
     plt.title(f'Comparison of Peak Values epoch {epoch}')
@@ -164,6 +166,7 @@ def compare_peak_and_mean(real_data, synthetic_data, output_path: Path, epoch: i
     plt.xlabel('Profile Index')
     plt.tight_layout()
     plt.savefig(output_path / f"total_mean_of_profiles_comparison_{epoch}.png")
+    plt.close(fig)
 
 
 def is_number(s):
@@ -275,7 +278,7 @@ def compare_distributions(real_df,
     # ks_stat, ks_p_value = ks_2samp(real_flattend, synthetic_flattend)
 
     # Histogram comparison
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     plt.hist(real_flattend, bins=bins, alpha=0.5, label='Real')
     plt.hist(synthetic_flattend, bins=bins, alpha=0.5, label='Synthetic')
     plt.title(f'Histogram Comparison for')
@@ -284,6 +287,7 @@ def compare_distributions(real_df,
     plt.legend()
     plt.tight_layout()
     plt.savefig(output_path / f"Load_Distribution_{epoch}.png")
+    plt.close(fig)
 
 
 def get_season(date):
