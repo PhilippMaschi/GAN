@@ -5,8 +5,10 @@ import pandas as pd
 import numpy as np
 import torch
 from pathlib import Path
-from GAN_Philipp import GAN, train_gan
+from GAN_Philipp import GAN
 import argparse
+from sklearn.preprocessing import MinMaxScaler
+
 
 print(f'torch {torch.__version__}')
 
@@ -108,18 +110,25 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
 
     df = df_train[numeric_cols]
     data = df.to_numpy()
-    number_of_profiles = data.shape[1]  # profiles have to be in the columns!
-    number_of_days = int(data.shape[0] / 24)
+    # Find the minimum and maximum values in the matrix
+    min_val = np.min(data)
+    max_val = np.max(data)
+
+    # Apply min-max scaling
+    scaled_matrix = (data - min_val) / (max_val - min_val)
+    min_max = np.array([min_val, max_val])
+    number_of_profiles = scaled_matrix.shape[1]  # profiles have to be in the columns!
+    number_of_days = int(scaled_matrix.shape[0] / 24)
     reshaped_array = np.empty((number_of_profiles, number_of_days, 24))
     reshaped_features = np.empty((number_of_profiles, number_of_days))
     # Reshape data for each profile
     for i in range(number_of_profiles):
-        reshaped_array[i, :, :] = data[:, i].reshape(number_of_days, 24)
+        reshaped_array[i, :, :] = scaled_matrix[:, i].reshape(number_of_days, 24)
         # reshaped_features[i, :] = df_features[:, i].reshape(4, 24)
     target = reshaped_array
 
     del df_train
-    return target  #, features, df_hull
+    return target, min_max  #, features, df_hull
 
 
 def create_training_dataframe(password_,
@@ -155,8 +164,7 @@ def train(
 
 ):
     # create np array with target and features
-    target = create_numpy_matrix_for_gan(training_df.copy())
-
+    target,  min_max = create_numpy_matrix_for_gan(training_df.copy())
     # Configure GAN
     if 1 and torch.cuda.is_available():
         device = torch.device('cuda:0')
@@ -185,7 +193,9 @@ def train(
     # save df_hull to the model folder so the generated data can be easily reshaped:
     # df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
     # save the original features to a npz file so it can be used for generating data later:
-    # np.save(file=Path(model.folder_name) / "original_features.npy", arr=features)
+    np.save(file=Path(model.folder_name) / "min_max.npy", arr=min_max)
+    # todo features brauchen wir nicht bei convd layer andere freatures könnten training beschleunigen (zb. vergleich
+    #  von mean und median) aber eher für VAE
     # save the original metadata:
     orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
@@ -211,9 +221,10 @@ if __name__ == "__main__":
     noise_dimension = 50
     n_profiles = 10  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 1000
-    epochs = 10
+    batchSize = 2
+    epochs = 1000
     Loss = "BCE"  # BCE, MSE, KLDiv, MAE
+    assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
 
     train_df = create_training_dataframe(
         password_=password,

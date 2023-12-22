@@ -41,13 +41,15 @@ class Generator(nn.Module):
     def __init__(self,
                  noise_dim,
                  # feature_dim,
-                 targetCount):
+                 target_shape):
         """
         Args:
             noise_dim: is the dimension of the noise vector (which includes the features that are added)
             targetCount: is the output dimension, (24h) in this case
         """
         super(Generator, self).__init__()
+        self.target_shape = target_shape
+        target_size = torch.prod(torch.tensor(target_shape))
         self.model = nn.Sequential(
             # 1st layer
             nn.Linear(in_features=noise_dim, out_features=256),
@@ -55,18 +57,21 @@ class Generator(nn.Module):
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=256, out_features=targetCount),
+            nn.Linear(in_features=256, out_features=target_size),
             nn.Tanh()
         )
 
-    def forward(self, noise, features):
-        return self.model(cat((noise, features), -1))
+    def forward(self, noise):
+        output = self.model(noise)
+        return output.view(-1, *self.target_shape)
+
 
 
 class Discriminator(nn.Module):
-    def __init__(self, targetCount):
+    def __init__(self, target_shape):
         super(Discriminator, self).__init__()
-        self.targetCount = targetCount
+
+        target_size = torch.prod(torch.tensor(target_shape))
         self.model = nn.Sequential(
             # todo try Conv1D, Conv2D
             # n_profiles, (51, 7, 24),  2D or 1D (1D lernt Tage und 2D lernt wochen mit, bezieht sich auf die letzen dimensionen)
@@ -74,7 +79,7 @@ class Discriminator(nn.Module):
             # nn.Flatten(),  # batch, 365*16
 
             # 1st layer
-            nn.Linear(in_features=self.targetCount, out_features=256),
+            nn.Linear(in_features=target_size, out_features=256),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
@@ -87,7 +92,9 @@ class Discriminator(nn.Module):
     #  try VAE,https://medium.com/@rekalantar/variational-auto-encoder-vae-pytorch-tutorial-dce2d2fe0f5f
 
     def forward(self, data):
-        return self.model(data)
+        data_flat = data.view(data.size(0), -1)  # Flatten the data
+        return self.model(data_flat)
+
 
 
 class GAN:
@@ -138,20 +145,17 @@ class GAN:
         # self.n_transformed_features = n_transformed_features
         # self.n_number_features = n_number_features
 
-        # Scale data and create dataLoader
-        self.scaler = MinMaxScaler(feature_range=(-1, 1))
-        self.samplesScaled = self.scaler.fit_transform(target.T).T
-        target_tensor = torch.Tensor(self.samplesScaled)
+        target_tensor = torch.Tensor(target)
         # features_tensor = torch.Tensor(self.features)
-        self.dataset = MyDataset(target_tensor)# , features_tensor)
+        self.dataset = MyDataset(target_tensor)  # , features_tensor)
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
 
         # Initialize generator, input is noise + labels (dimLatent) and output is 24 (target shape)
-        self.Gen = Generator(self.dimNoise, self.target.shape[1])
+        self.Gen = Generator(self.dimNoise, self.target.shape[-2:])
         self.Gen.to(self.device)
 
         # Initialize discriminator
-        self.Dis = Discriminator(self.target.shape[1])  # discriminator gets vector with 24 values
+        self.Dis = Discriminator(self.target.shape[-2:])  # discriminator gets vector with 24 values
         self.Dis.to(self.device)
 
         # Initialize optimizers
@@ -236,7 +240,7 @@ class GAN:
         grad_norms_dis = []
         grad_norms_gen = []
         for epoch in tqdm(range(self.epochCount)):
-            for batchIdx, (data, label) in enumerate(self.dataLoader):  # target = actual (real) label
+            for batchIdx, data in enumerate(self.dataLoader):  # target = actual (real) label
                 # rows: days x profiles (as provoded by dataLoader => length Batchsize)), columns hours per day
                 target_to = data.to(device=self.device, dtype=torch.float32)
 
@@ -339,28 +343,28 @@ class GAN:
         del grad_norms_gen
 
 
-def checkpoint_callback(folder_name):
-    return pl.callbacks.ModelCheckpoint(
-        dirpath=folder_name,  # Replace with your path
-        filename='{epoch}-{step}',  # Customizable
-        every_n_epochs=500,
-        save_top_k=-1,  # -1 indicates all checkpoints are saved
-        save_weights_only=True  # Set to False if you want to save the entire model
-    )
+# def checkpoint_callback(folder_name):
+#     return pl.callbacks.ModelCheckpoint(
+#         dirpath=folder_name,  # Replace with your path
+#         filename='{epoch}-{step}',  # Customizable
+#         every_n_epochs=500,
+#         save_top_k=-1,  # -1 indicates all checkpoints are saved
+#         save_weights_only=True  # Set to False if you want to save the entire model
+#     )
 
 
-def train_gan(**kwargs):
-    model = GAN(**kwargs)
-    model_checkpoint = checkpoint_callback(folder_name=model.folder_name)
-    trainer = pl.Trainer(
-        callbacks=[model_checkpoint],
-        max_epochs=kwargs["epochCount"],
-        accelerator="auto",
-        devices="auto",
-        strategy="auto"
-    )
-    trainer.fit(model)
-    return model
+# def train_gan(**kwargs):
+#     model = GAN(**kwargs)
+#     model_checkpoint = checkpoint_callback(folder_name=model.folder_name)
+#     trainer = pl.Trainer(
+#         callbacks=[model_checkpoint],
+#         max_epochs=kwargs["epochCount"],
+#         accelerator="auto",
+#         devices="auto",
+#         strategy="auto"
+#     )
+#     trainer.fit(model)
+#     return model
 
 
 def generate_data_from_saved_model(
