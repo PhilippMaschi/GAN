@@ -97,37 +97,29 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
 
     Returns: target and features and df_hull which is a df which contains the orig index for reshaping the generated
     data later
-
     """
-    df_train["month sin"] = np.sin(df_train.index.month * (2 * np.pi / len(df_train.index.month.unique())))
-    df_train["month cos"] = np.cos(df_train.index.month * (2 * np.pi / len(df_train.index.month.unique())))
-    df_train["weekday sin"] = np.sin(df_train.index.weekday * (2 * np.pi / len(df_train.index.weekday.unique())))
-    df_train["weekday cos"] = np.cos(df_train.index.weekday * (2 * np.pi / len(df_train.index.weekday.unique())))
 
-    non_numeric_cols = [col for col in df_train.columns if not is_number(col)]
+    # TODO create the numpy matrix with 3 dimensions (5000, 365, 24)
     numeric_cols = [col for col in df_train.columns if is_number(col)]
-    df_shape = df_train.melt(id_vars=df_train[non_numeric_cols],
-                             value_vars=df_train[numeric_cols],
-                             var_name='profile')
 
-    df_pivot = df_shape.pivot_table(values='value',
-                                    index=[
-                                        'date', 'profile', "month sin", "month cos", "weekday sin", "weekday cos",
-                                           "day off"
-                                    ],
-                                    columns='hour of the day')
-    # create a shape of the df_pivot that is needed to reshape the generated data from the GAN later
-    df_hull = df_pivot.copy()
-    df_hull[::] = np.zeros(df_hull.shape)
+    # features in shape (4, 365)
+    # feature_names = ["month sin", "month cos", "weekday sin", "weekday cos", "day off"]
+    # df_features = df_train[feature_names].to_numpy()
 
-    target = df_pivot.values
-    features = np.vstack([df_pivot.index.get_level_values("month sin").to_numpy(),
-                          df_pivot.index.get_level_values("month cos").to_numpy(),
-                          df_pivot.index.get_level_values("weekday sin").to_numpy(),
-                          df_pivot.index.get_level_values("weekday cos").to_numpy(),
-                          df_pivot.index.get_level_values("day off").to_numpy()]).T
+    df = df_train[numeric_cols]
+    data = df.to_numpy()
+    number_of_profiles = data.shape[1]  # profiles have to be in the columns!
+    number_of_days = int(data.shape[0] / 24)
+    reshaped_array = np.empty((number_of_profiles, number_of_days, 24))
+    reshaped_features = np.empty((number_of_profiles, number_of_days))
+    # Reshape data for each profile
+    for i in range(number_of_profiles):
+        reshaped_array[i, :, :] = data[:, i].reshape(number_of_days, 24)
+        # reshaped_features[i, :] = df_features[:, i].reshape(4, 24)
+    target = reshaped_array
+
     del df_train
-    return target, features, df_hull
+    return target  #, features, df_hull
 
 
 def create_training_dataframe(password_,
@@ -163,7 +155,7 @@ def train(
 
 ):
     # create np array with target and features
-    target, features, df_hull = create_numpy_matrix_for_gan(training_df.copy())
+    target = create_numpy_matrix_for_gan(training_df.copy())
 
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -173,36 +165,32 @@ def train(
         device = torch.device('cpu')
         print('CPU is used.')
 
-    featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
+    # featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
     model_name = 'ModelTestPhilipp'
-    model = train_gan(
+    model = GAN(
         name=model_name,
         device=device,
         batchSize=batchSize,
         target=target,
-        features=features,
         dimNoise=dimNoise,
-        featureCount=featureCount,
         lr=lr,
         maxNorm=maxNorm,
         epochCount=epochCount,
-        n_transformed_features=4,
-        n_number_features=1,
         cluster_label=cluster_label,
         cluster_algorithm=cluster_algorithm,
         n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)]),
         LossFct=loss
     )
     # save df_hull to the model folder so the generated data can be easily reshaped:
-    df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
+    # df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
     # save the original features to a npz file so it can be used for generating data later:
-    np.save(file=Path(model.folder_name) / "original_features.npy", arr=features)
+    # np.save(file=Path(model.folder_name) / "original_features.npy", arr=features)
     # save the original metadata:
     orig_metadata = training_df[[col for col in training_df.columns if not is_number(col)]]
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
 
-    # model.train()
+    model.train()
     print(f"Training {model.folder_name} done""")
 
 
