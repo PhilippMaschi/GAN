@@ -345,8 +345,6 @@ def numpy_matrix_to_pandas_table_with_metadata(hull: pd.DataFrame, synthetic_dat
 def visualize_results_from_model_folder(
         folder_path,
         noise_dimension,
-        feature_count,  # depends on the features selected in train_gan -> automate
-        target_count,  # 24 if we trained on days
         n_profiles_trained_on,
         normalize,
         device,
@@ -371,31 +369,17 @@ def visualize_results_from_model_folder(
     file_names = [file.name for file in Path(folder_path).glob("*.pt")]
     file_names.sort()
 
-    orig_features = np.load(folder_path / "original_features.npy")
-    hull = pd.read_parquet(folder_path / "hull.parquet.gzip")
+    min_max = np.load(folder_path / "min_max.npy")
+    # hull = pd.read_parquet(folder_path / "hull.parquet.gzip")
     orig_meta_data = pd.read_parquet(folder_path / "meta_data.parquet.gzip")
     for model in file_names:
         epoch = int(model.replace("epoch=", "").replace(".pt", ""))
-        synthetic_data = generate_data_from_saved_model(
-            model_path=f"{folder_path}/{model}",
-            noise_dim=noise_dimension,
-            featureCount=feature_count,
-            targetCount=target_count,
-            original_features=orig_features,
-            normalized=normalize,
-            device=device,
-        )
-
-        df_synthetic = numpy_matrix_to_pandas_table_with_metadata(
-            hull=hull,
-            synthetic_data=synthetic_data,
-            original_meta_data=orig_meta_data
-        ).set_index("timestamp")
 
         folder_name = Path(folder_path).stem
         output_path = Path(folder_path).parent.parent / "plots" / folder_name
         output_path.mkdir(parents=True, exist_ok=True)
 
+        # real data
         train_df = create_training_dataframe(
             password_="Ene123Elec#4",
             clusterLabel=cluster_label,
@@ -403,17 +387,41 @@ def visualize_results_from_model_folder(
             label_csv_filename="DBSCAN_15_clusters_labels.csv",
             path_to_orig_file=Path(folder_path).parent.parent.parent / "GAN_data"
         )
+        numeric_cols = [col for col in train_df.columns if is_number(col)]
         if normalize:
-            target, features, df_hull = create_numpy_matrix_for_gan(train_df.copy())
-            scaler = MinMaxScaler(feature_range=(-1, 1))
-            samplesScaled = scaler.fit_transform(target.T).T
-            df_real = numpy_matrix_to_pandas_table_with_metadata(
-                hull=hull,
-                synthetic_data=samplesScaled,
-                original_meta_data=orig_meta_data
-            ).set_index("timestamp")
+            # scale the real profiles to 0, 1
+            data = train_df[numeric_cols].to_numpy()
+            min_val, max_val = min_max[0], min_max[1]
+            scaled_matrix = (data - min_val) / (max_val - min_val)
+            df_real = train_df.copy()
+            df_real[numeric_cols] = scaled_matrix
         else:
             df_real = train_df
+
+        # synthetic data
+        synthetic_data = generate_data_from_saved_model(
+            model_path=f"{folder_path}/{model}",
+            noise_dim=noise_dimension,
+            normalized=normalize,
+            device=device,
+            targetShape=(n_profiles_trained_on, 395, 24),
+            min_max=min_max
+        )
+
+        # Initialize an empty list to hold flattened profiles
+        flattened_profiles = []
+
+        # Flatten each profile and append to the list
+        for i in range(n_profiles_trained_on):
+            flattened_profile = synthetic_data[i, :, :].flatten()
+            flattened_profiles.append(flattened_profile)
+
+        # Stack the flattened profiles horizontally to recreate the original array structure
+        original_structure = np.column_stack(flattened_profiles)
+
+        df_synthetic = train_df.copy()
+        df_synthetic[numeric_cols] = original_structure
+
 
 
         plot_average_week(df_synthetic, df_real, output_path, epoch)
@@ -440,20 +448,18 @@ def visualize_results_from_model_folder(
                               bins=100)
 
 
-        plotly_single_profiles(real_data=df_real,
-                               synthetic_data=df_synthetic,
-                               epoch=epoch)
+        # plotly_single_profiles(real_data=df_real,
+        #                        synthetic_data=df_synthetic,
+        #                        epoch=epoch)
 
 
 if __name__ == "__main__":
     model_nickname = "ModelTestPhilipp"
-    batch_size = 1000
+    batch_size = 2
     noise_dim = 50
-    feature_count = 5
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
-    n_profiles_trained_on = 100
-    target_count = 24
+    n_profiles_trained_on = 10
     device = "cpu"
     loss = "KLDiv"   # BCE, MSE, KLDiv, MAE
 
@@ -462,19 +468,16 @@ if __name__ == "__main__":
                   f"ClusterLabel={cluster_label}_" \
                   f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                   f"BatchSize={batch_size}_" \
-                  f"FeatureCount={feature_count}_" \
                   f"NoiseDim={noise_dim}_" \
                   f"Loss={loss}"
     print(f"visualization for {folder_name}")
-    model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
-    # model_folder = Path(__file__).absolute().parent / folder_name
+    # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
+    model_folder = Path(__file__).absolute().parent / folder_name
 
     normalize = False
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
-        feature_count=feature_count,
-        target_count=target_count,
         n_profiles_trained_on=n_profiles_trained_on,
         normalize=normalize,
         device=device,

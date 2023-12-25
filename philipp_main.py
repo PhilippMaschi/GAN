@@ -101,7 +101,6 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     data later
     """
 
-    # TODO create the numpy matrix with 3 dimensions (5000, 365, 24)
     numeric_cols = [col for col in df_train.columns if is_number(col)]
 
     # features in shape (4, 365)
@@ -120,7 +119,7 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     number_of_profiles = scaled_matrix.shape[1]  # profiles have to be in the columns!
     number_of_days = int(scaled_matrix.shape[0] / 24)
     reshaped_array = np.empty((number_of_profiles, number_of_days, 24))
-    reshaped_features = np.empty((number_of_profiles, number_of_days))
+    # reshaped_features = np.empty((number_of_profiles, number_of_days))
     # Reshape data for each profile
     for i in range(number_of_profiles):
         reshaped_array[i, :, :] = scaled_matrix[:, i].reshape(number_of_days, 24)
@@ -223,7 +222,7 @@ if __name__ == "__main__":
     cluster_label = 0
     batchSize = 2
     epochs = 1000
-    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
+    Loss = "KLDiv"  # BCE, MSE, KLDiv, MAE
     assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
 
     train_df = create_training_dataframe(

@@ -58,13 +58,12 @@ class Generator(nn.Module):
 
             # 7th layer
             nn.Linear(in_features=256, out_features=target_size),
-            nn.Tanh()
+            nn.Sigmoid()
         )
 
     def forward(self, noise):
         output = self.model(noise)
         return output.view(-1, *self.target_shape)
-
 
 
 class Discriminator(nn.Module):
@@ -94,7 +93,6 @@ class Discriminator(nn.Module):
     def forward(self, data):
         data_flat = data.view(data.size(0), -1)  # Flatten the data
         return self.model(data_flat)
-
 
 
 class GAN:
@@ -194,7 +192,7 @@ class GAN:
     def save_model_state(self, checkpoint_path, epoch):
         torch.save({
             "epoch": epoch,
-            "scaler": self.scaler,
+            # "scaler": self.scaler,
             'generator_state_dict': self.Gen.state_dict(),
             'discriminator_state_dict': self.Dis.state_dict(),
             'optimizer_gen_state_dict': self.optimGen.state_dict(),
@@ -305,10 +303,7 @@ class GAN:
             grad_norms_dis.append(grad_norm_dis.detach().cpu().numpy())
             grad_norms_gen.append(grad_norm_gen.detach().cpu().numpy())
 
-        del self.target
-        del self.samplesScaled
-        del self.dataset
-        del self.dataLoader
+
         # After training
         fig = plt.figure(figsize=(12, 8))
         plt.subplot(2, 1, 1)
@@ -341,7 +336,9 @@ class GAN:
         del losses_gen
         del grad_norms_dis
         del grad_norms_gen
-
+        del self.target
+        del self.dataset
+        del self.dataLoader
 
 # def checkpoint_callback(folder_name):
 #     return pl.callbacks.ModelCheckpoint(
@@ -370,19 +367,17 @@ class GAN:
 def generate_data_from_saved_model(
         model_path,
         noise_dim: int,
-        featureCount: int,  # number of features that are added to noise vector
-        targetCount: int,  # 24
-        original_features: np.array,
+        targetShape,
+        min_max,
         normalized: bool = False,
-        device='cpu'
+        device='cpu',
 ):
     """
 
     Args:
         model_path:
         noise_dim:
-        featureCount:
-        targetCount:
+        targetShape: (number of profiles, number of days, 24)
         original_features:
         normalized: if normalized the profiles are going to be between -1 and 1
         device:
@@ -391,20 +386,19 @@ def generate_data_from_saved_model(
 
     """
     # Initialize the generator
-    generator = Generator(noise_dim, featureCount, targetCount)
+    generator = Generator(noise_dim, target_shape=targetShape[-2:])
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
     generator.eval()
-    if not normalized:
-        scaler = checkpoint["scaler"]
     # Generate the data
     with torch.no_grad():
-        noise = torch.randn(len(original_features), noise_dim, device=device, dtype=torch.float32)
-        labels = torch.tensor(original_features, device=device, dtype=torch.float32)  # Example: Random labels
-        generated_samples = generator(noise, labels).detach().cpu().numpy()
+        noise = randn(targetShape[0], noise_dim, device=device, dtype=torch.float32)
+        generated_samples = generator(noise).detach().cpu().numpy()
         if not normalized:
-            scaled_samples = scaler.inverse_transform(generated_samples.T).T
+            min_val, max_val = min_max[0], min_max[1]
+            # Apply min-max scaling inverted
+            scaled_samples = (generated_samples + min_val) * (max_val - min_val)
         else:
             scaled_samples = generated_samples
 
