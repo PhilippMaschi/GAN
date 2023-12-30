@@ -52,12 +52,12 @@ class Generator(nn.Module):
         target_size = torch.prod(torch.tensor(target_shape))
         self.model = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=noise_dim, out_features=256),
-            nn.BatchNorm1d(256),
+            nn.Linear(in_features=noise_dim, out_features=256*2),
+            # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=256, out_features=target_size),
+            nn.Linear(in_features=256*2, out_features=target_size),
             nn.Sigmoid()
         )
 
@@ -79,7 +79,7 @@ class Discriminator(nn.Module):
 
             # 1st layer
             nn.Linear(in_features=target_size, out_features=256),
-            nn.BatchNorm1d(256),
+            # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer

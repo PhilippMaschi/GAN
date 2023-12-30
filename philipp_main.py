@@ -218,11 +218,11 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     noise_dimension = 50
-    n_profiles = 10  # kann None sein, dann werden alle Profile genommen
+    n_profiles = 1  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 2
+    batchSize = 1
     epochs = 1000
-    Loss = "KLDiv"  # BCE, MSE, KLDiv, MAE
+    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
     assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
 
     train_df = create_training_dataframe(

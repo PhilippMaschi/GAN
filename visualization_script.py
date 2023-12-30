@@ -431,10 +431,10 @@ def visualize_results_from_model_folder(
                                   output_path=output_path,
                                   epoch_number=epoch)
 
-        plot_pca_analysis(real_data=df_real,
-                          synthetic_data=df_synthetic,
-                          output_path=output_path,
-                          epoch=epoch)
+        # plot_pca_analysis(real_data=df_real,
+        #                   synthetic_data=df_synthetic,
+        #                   output_path=output_path,
+        #                   epoch=epoch)
 
         compare_peak_and_mean(real_data=df_real,
                               synthetic_data=df_synthetic,
@@ -455,13 +455,13 @@ def visualize_results_from_model_folder(
 
 if __name__ == "__main__":
     model_nickname = "ModelTestPhilipp"
-    batch_size = 2
+    batch_size = 1
     noise_dim = 50
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
-    n_profiles_trained_on = 10
-    device = "cpu"
-    loss = "KLDiv"   # BCE, MSE, KLDiv, MAE
+    n_profiles_trained_on = 1
+    device = "cuda:0"
+    loss = "BCE"   # BCE, MSE, KLDiv, MAE
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
     model_folder = Path(__file__).absolute().parent / folder_name
 
-    normalize = False
+    normalize = True
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
