@@ -461,7 +461,9 @@ if __name__ == "__main__":
     cluster_label = 0
     n_profiles_trained_on = 1
     device = "cuda:0"
-    loss = "BCE"   # BCE, MSE, KLDiv, MAE
+    loss = "MAE"   # BCE, MSE, KLDiv, MAE
+    lr_dis = 0.000_2
+    lr_gen = 0.000_01
 
     folder_name = f"models/{model_nickname}_" \
                   f"Clustered={cluster_algorithm}_" \
@@ -469,7 +471,9 @@ if __name__ == "__main__":
                   f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                   f"BatchSize={batch_size}_" \
                   f"NoiseDim={noise_dim}_" \
-                  f"Loss={loss}"
+                  f"Loss={loss}" \
+                  f"DisLR={lr_dis}_" \
+                  f"GenLR={lr_gen}"
     print(f"visualization for {folder_name}")
     # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
     model_folder = Path(__file__).absolute().parent / folder_name

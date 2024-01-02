@@ -158,7 +158,8 @@ def train(
         cluster_algorithm,
         loss: str,
         epochCount=500,
-        lr=1e-5,
+        lr_dis=1e-5,
+        lr_gen=1e-5,
         maxNorm=1e6,
 
 ):
@@ -181,7 +182,8 @@ def train(
         batchSize=batchSize,
         target=target,
         dimNoise=dimNoise,
-        lr=lr,
+        lr_dis=lr_dis,
+        lr_gen=lr_gen,
         maxNorm=maxNorm,
         epochCount=epochCount,
         cluster_label=cluster_label,
@@ -222,7 +224,9 @@ if __name__ == "__main__":
     cluster_label = 0
     batchSize = 1
     epochs = 1000
-    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
+    Loss = "MAE"  # BCE, MSE, KLDiv, MAE
+    lr_dis = 0.000_2
+    lr_gen = 0.000_01
     assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
 
     train_df = create_training_dataframe(
@@ -239,7 +243,8 @@ if __name__ == "__main__":
         epochCount=epochs,
         cluster_algorithm="DBSCAN",
         cluster_label=cluster_label,
-        lr=1e-5,
+        lr_dis=lr_dis,
+        lr_gen=lr_gen,
         maxNorm=1e6,
         loss=Loss
     )

@@ -52,12 +52,12 @@ class Generator(nn.Module):
         target_size = torch.prod(torch.tensor(target_shape))
         self.model = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=noise_dim, out_features=256*2),
+            nn.Linear(in_features=noise_dim, out_features=256),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=256*2, out_features=target_size),
+            nn.Linear(in_features=256, out_features=target_size),
             nn.Sigmoid()
         )
 
@@ -78,12 +78,12 @@ class Discriminator(nn.Module):
             # nn.Flatten(),  # batch, 365*16
 
             # 1st layer
-            nn.Linear(in_features=target_size, out_features=256),
+            nn.Linear(in_features=target_size, out_features=128),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=256, out_features=1),
+            nn.Linear(in_features=128, out_features=1),
             nn.Sigmoid()
         )
     # todo LOSS correction, shallow network (128 to 64 after should be able to aprox mean ), if that works add another
@@ -104,7 +104,8 @@ class GAN:
                  # features,
                  dimNoise,
                  # featureCount,
-                 lr,
+                 lr_dis,
+                 lr_gen,
                  maxNorm,
                  epochCount,
                  # n_transformed_features: int,
@@ -123,10 +124,11 @@ class GAN:
         self.dimNoise = dimNoise
         # self.dimLatent = dimNoise + featureCount  # dimension of noise vector (features are added to noise vector)
         # self.featureCount = featureCount
-        self.lr = lr
         self.maxNorm = maxNorm
         self.epochCount = epochCount
         self.lossFct = LossFct
+        self.lr_gen = lr_gen
+        self.lr_dis = lr_dis
 
         self.folder_name = f"models/{self.name}_" \
                            f"Clustered={cluster_algorithm}_" \
@@ -134,7 +136,9 @@ class GAN:
                            f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                            f"BatchSize={self.batchSize}_" \
                            f"NoiseDim={self.dimNoise}_" \
-                           f"Loss={self.lossFct}"
+                           f"Loss={self.lossFct}_" \
+                           f"DisLR={lr_dis}_" \
+                           f"GenLR={lr_gen}"
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
@@ -157,8 +161,8 @@ class GAN:
         self.Dis.to(self.device)
 
         # Initialize optimizers
-        self.optimGen = optim.Adam(params=self.Gen.parameters(), lr=self.lr)
-        self.optimDis = optim.Adam(params=self.Dis.parameters(), lr=self.lr)
+        self.optimGen = optim.Adam(params=self.Gen.parameters(), lr=self.lr_gen)
+        self.optimDis = optim.Adam(params=self.Dis.parameters(), lr=self.lr_dis)
 
         # Initialize the loss function
         if self.lossFct == "BCE":
@@ -222,7 +226,8 @@ class GAN:
         #     log_freq=30,
         # )
         parameters = {
-            "lr": self.lr,
+            "lr_gen": self.lr_gen,
+            "lr_dis": self.lr_dis,
             "BatchSize": self.batchSize,
             "NoiseDim": self.dimNoise,
             "model_filename": self.name,
