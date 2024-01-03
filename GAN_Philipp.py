@@ -78,12 +78,12 @@ class Discriminator(nn.Module):
             # nn.Flatten(),  # batch, 365*16
 
             # 1st layer
-            nn.Linear(in_features=target_size, out_features=128),
+            nn.Linear(in_features=target_size, out_features=16),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=128, out_features=1),
+            nn.Linear(in_features=16, out_features=1),
             nn.Sigmoid()
         )
     # todo LOSS correction, shallow network (128 to 64 after should be able to aprox mean ), if that works add another
@@ -279,14 +279,20 @@ class GAN:
                 self.optimDis.step()  # update the discriminator
 
                 # Train generator (now that we fed the discriminator with fake data)
-                self.Gen.zero_grad()
-                # let the discriminator label the fake data (now that the discriminator is updated)
-                yFake_2 = self.Dis(xFake)
-                # calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
-                lossGen = self.criterion(yFake_2, labelReal)
-                lossGen.backward()
-                grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
-                self.optimGen.step()
+                iterations = 4
+                for i in range(iterations):
+                    self.Gen.zero_grad()
+                    # let the discriminator label the fake data (now that the discriminator is updated)
+                    xFake_2 = self.Gen(noise)
+                    yFake_2 = self.Dis(xFake_2)
+                    # calculate the generator loss (small if the discriminator thinks that `yFake_2 == labelReal`)
+                    lossGen = self.criterion(yFake_2, labelReal)
+                    if i == iterations-1:
+                        lossGen.backward()
+                    else:
+                        lossGen.backward(retain_graph=True)
+                    grad_norm_gen = torch.nn.utils.clip_grad_norm_(self.Gen.parameters(), max_norm=self.maxNorm)
+                    self.optimGen.step()
 
                 # Log after every 30 steps
                 # if batchIdx % 30 == 0:
@@ -403,7 +409,7 @@ def generate_data_from_saved_model(
         if not normalized:
             min_val, max_val = min_max[0], min_max[1]
             # Apply min-max scaling inverted
-            scaled_samples = (generated_samples + min_val) * (max_val - min_val)
+            scaled_samples = generated_samples * (max_val - min_val) + min_val
         else:
             scaled_samples = generated_samples
 
