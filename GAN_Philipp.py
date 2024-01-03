@@ -78,12 +78,12 @@ class Discriminator(nn.Module):
             # nn.Flatten(),  # batch, 365*16
 
             # 1st layer
-            nn.Linear(in_features=target_size, out_features=16),
+            nn.Linear(in_features=target_size, out_features=8),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
             # 7th layer
-            nn.Linear(in_features=16, out_features=1),
+            nn.Linear(in_features=8, out_features=1),
             nn.Sigmoid()
         )
     # todo LOSS correction, shallow network (128 to 64 after should be able to aprox mean ), if that works add another
@@ -381,7 +381,6 @@ def generate_data_from_saved_model(
         targetShape,
         min_max,
         normalized: bool = False,
-        device='cpu',
 ):
     """
 
@@ -397,6 +396,10 @@ def generate_data_from_saved_model(
 
     """
     # Initialize the generator
+    if torch.cuda.is_available():
+        device = "cuda:0"
+    else:
+        device = "cpu"
     generator = Generator(noise_dim, target_shape=targetShape[-2:])
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])

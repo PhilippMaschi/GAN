@@ -21,7 +21,7 @@ import seaborn as sns
 
 def plotly_single_profiles(real_data, synthetic_data, epoch: int):
     numeric_cols = [col for col in real_data.columns if is_number(col)]
-    random_profiles = random.sample(numeric_cols, 3)
+    random_profiles = random.sample(numeric_cols, 1)
     real = real_data[random_profiles]
     real.loc[:, "type"] = "real"
     real.loc[:, "hour"] = np.arange(len(real))
@@ -347,8 +347,6 @@ def visualize_results_from_model_folder(
         noise_dimension,
         n_profiles_trained_on,
         normalize,
-        device,
-        loss,
 ):
     """
 
@@ -359,7 +357,6 @@ def visualize_results_from_model_folder(
         target_count:
         n_profiles_trained_on:
         normalize: if normalized than the comparison is done on profiles between -1 and 1
-        device: cpu or cuda:0
         loss:
 
     Returns:
@@ -403,7 +400,6 @@ def visualize_results_from_model_folder(
             model_path=f"{folder_path}/{model}",
             noise_dim=noise_dimension,
             normalized=normalize,
-            device=device,
             targetShape=(n_profiles_trained_on, 395, 24),
             min_max=min_max
         )
@@ -436,10 +432,10 @@ def visualize_results_from_model_folder(
         #                   output_path=output_path,
         #                   epoch=epoch)
 
-        compare_peak_and_mean(real_data=df_real,
-                              synthetic_data=df_synthetic,
-                              output_path=output_path,
-                              epoch=epoch)
+        # compare_peak_and_mean(real_data=df_real,
+        #                       synthetic_data=df_synthetic,
+        #                       output_path=output_path,
+        #                       epoch=epoch)
 
         compare_distributions(real_df=df_real,
                               synthetic_df=df_synthetic,
@@ -456,12 +452,12 @@ def visualize_results_from_model_folder(
 if __name__ == "__main__":
     model_nickname = "ModelTestPhilipp"
     batch_size = 1
-    noise_dim = 50
+    noise_dim = 100
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
     n_profiles_trained_on = 1
     device = "cuda:0"
-    loss = "MAE"   # BCE, MSE, KLDiv, MAE
+    loss = "BCE"   # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
 
@@ -471,19 +467,17 @@ if __name__ == "__main__":
                   f"NProfilesTrainedOn={n_profiles_trained_on}_" \
                   f"BatchSize={batch_size}_" \
                   f"NoiseDim={noise_dim}_" \
-                  f"Loss={loss}" \
+                  f"Loss={loss}_" \
                   f"DisLR={lr_dis}_" \
                   f"GenLR={lr_gen}"
     print(f"visualization for {folder_name}")
     # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
     model_folder = Path(__file__).absolute().parent / folder_name
 
-    normalize = True
+    normalize = False
     visualize_results_from_model_folder(
         folder_path=model_folder,
         noise_dimension=noise_dim,
         n_profiles_trained_on=n_profiles_trained_on,
         normalize=normalize,
-        device=device,
-        loss=loss
     )

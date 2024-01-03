@@ -219,14 +219,15 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-    noise_dimension = 50
+    noise_dimension = 100
     n_profiles = 1  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 1
-    epochs = 1000
-    Loss = "MAE"  # BCE, MSE, KLDiv, MAE
+    epochs = 10000
+    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
+    maxnorm = 100
     assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
 
     train_df = create_training_dataframe(
@@ -245,7 +246,7 @@ if __name__ == "__main__":
         cluster_label=cluster_label,
         lr_dis=lr_dis,
         lr_gen=lr_gen,
-        maxNorm=1e6,
+        maxNorm=maxnorm,
         loss=Loss
     )
     torch.cuda.empty_cache()
