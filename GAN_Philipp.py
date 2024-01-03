@@ -50,19 +50,35 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.target_shape = target_shape
         target_size = torch.prod(torch.tensor(target_shape))
-        self.model = nn.Sequential(
+        self.initial_channels = 16
+        self.initial_size = 6
+        linear_output_size = self.initial_channels * self.initial_size * self.initial_size
+        self.linear = nn.Sequential(
             # 1st layer
-            nn.Linear(in_features=noise_dim, out_features=256),
+            nn.Linear(in_features=noise_dim, out_features=linear_output_size),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
+        )
 
-            # 7th layer
-            nn.Linear(in_features=256, out_features=target_size),
+        self.conv = nn.Sequential(
+            nn.ConvTranspose2d(self.initial_channels, self.initial_channels // 2, kernel_size=4, stride=2, padding=1),
+            # nn.BatchNorm2d(self.initial_channels // 2),
+            nn.ReLU(inplace=True),
+
+            nn.ConvTranspose2d(self.initial_channels // 2, self.initial_channels // 4, kernel_size=4, stride=2, padding=1),
+            # nn.BatchNorm2d(self.initial_channels // 4),
+            nn.ReLU(inplace=True),
+
+            nn.ConvTranspose2d(self.initial_channels // 4, 1, kernel_size=4, stride=2, padding=1),
             nn.Sigmoid()
         )
 
     def forward(self, noise):
-        output = self.model(noise)
+        # z is the input noise vector
+        x = self.linear(noise)
+        z = x.view(-1, self.initial_channels, self.initial_size, self.initial_size)
+        output = self.conv(z)
+
         return output.view(-1, *self.target_shape)
 
 
@@ -71,18 +87,34 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         target_size = torch.prod(torch.tensor(target_shape))
+        # Assuming target_shape is (days, hours)
+        batchsize, days, hours = target_shape[0], target_shape[1], target_shape[2]
+        kernel_size = 3  # The size of the filter. In 1D convolution, it's the number of time steps the filter covers.
+        # For example, a kernel_size of 3 means each filter looks at 3 consecutive time steps in each convolution
+        # operation.
+        # The stride of the convolution. The stride is the number of time steps the filter moves after each operation.
+        # A stride of 1 means the filter moves one step at a time. A larger stride results in downsampling of the input.
+
         self.model = nn.Sequential(
             # todo try Conv1D, Conv2D
             # n_profiles, (51, 7, 24),  2D or 1D (1D lernt Tage und 2D lernt wochen mit, bezieht sich auf die letzen dimensionen)
             # nn.Conv2d(in_channels=24, out_channels=64, kernel_size=24),  # batch, 365, 1, 64
             # nn.Flatten(),  # batch, 365*16
-
+            # The output from a nn.Conv1d layer is a three-dimensional tensor with shape
+            # (batch_size, out_channels, conv_output_length), The number of channels in the input signal. For instance,
+            # in time-series data, if you are only looking at one feature (like temperature over time), in_channels
+            # would be 1. If you're analyzing multiple features at each time step (like temperature, humidity, and
+            # pressure), in_channels would be equal to the number of features. I could use the cluster labels as
+            # in_channels!
+            # nn.Conv1d(in_channels=1, out_channels=16, kernel_size=kernel_size),
+            # nn.LeakyReLU(inplace=True),
+            # nn.Flatten(),
             # 1st layer
             nn.Linear(in_features=target_size, out_features=8),
             # nn.BatchNorm1d(256),
             nn.LeakyReLU(inplace=True),
 
-            # 7th layer
+            # layer
             nn.Linear(in_features=8, out_features=1),
             nn.Sigmoid()
         )
@@ -157,7 +189,7 @@ class GAN:
         self.Gen.to(self.device)
 
         # Initialize discriminator
-        self.Dis = Discriminator(self.target.shape[-2:])  # discriminator gets vector with 24 values
+        self.Dis = Discriminator(self.target.shape)  # discriminator gets vector with 24 values
         self.Dis.to(self.device)
 
         # Initialize optimizers
