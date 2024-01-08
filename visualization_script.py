@@ -10,8 +10,7 @@ from scipy.stats import ks_2samp
 import torch
 import plotly.express as px
 import random
-from GAN_Philipp import generate_data_from_saved_model, MinMaxScaler
-from philipp_main import create_training_dataframe, create_numpy_matrix_for_gan
+from GAN_Philipp import generate_data_from_saved_model
 import seaborn as sns
 
 
@@ -347,6 +346,7 @@ def visualize_results_from_model_folder(
         noise_dimension,
         n_profiles_trained_on,
         normalize,
+        train_df,
 ):
     """
 
@@ -376,14 +376,6 @@ def visualize_results_from_model_folder(
         output_path = Path(folder_path).parent.parent / "plots" / folder_name
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # real data
-        train_df = create_training_dataframe(
-            password_="Ene123Elec#4",
-            clusterLabel=cluster_label,
-            number_of_profiles=n_profiles_trained_on,
-            label_csv_filename="DBSCAN_15_clusters_labels.csv",
-            path_to_orig_file=Path(folder_path).parent.parent.parent / "GAN_data"
-        )
         numeric_cols = [col for col in train_df.columns if is_number(col)]
         if normalize:
             # scale the real profiles to 0, 1
@@ -432,10 +424,10 @@ def visualize_results_from_model_folder(
         #                   output_path=output_path,
         #                   epoch=epoch)
 
-        # compare_peak_and_mean(real_data=df_real,
-        #                       synthetic_data=df_synthetic,
-        #                       output_path=output_path,
-        #                       epoch=epoch)
+        compare_peak_and_mean(real_data=df_real,
+                              synthetic_data=df_synthetic,
+                              output_path=output_path,
+                              epoch=epoch)
 
         compare_distributions(real_df=df_real,
                               synthetic_df=df_synthetic,
@@ -450,12 +442,12 @@ def visualize_results_from_model_folder(
 
 
 if __name__ == "__main__":
-    model_nickname = "ModelTestPhilipp"
-    batch_size = 1
+    model_nickname = "gen_4_iterations_disc_1layer_16_gen_2layer_1024_256"
+    batch_size = 256
     noise_dim = 100
     cluster_algorithm = "DBSCAN"
     cluster_label = 0
-    n_profiles_trained_on = 1
+    n_profiles_trained_on = 4383
     device = "cuda:0"
     loss = "BCE"   # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
@@ -480,4 +472,5 @@ if __name__ == "__main__":
         noise_dimension=noise_dim,
         n_profiles_trained_on=n_profiles_trained_on,
         normalize=normalize,
+        train_df=create_training_dataframe()
     )

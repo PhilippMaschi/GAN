@@ -1,6 +1,8 @@
 import cryptpandas as crp
 import os, sys, signal
 import getpass
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import torch
@@ -8,6 +10,7 @@ from pathlib import Path
 from GAN_Philipp import GAN
 import argparse
 from sklearn.preprocessing import MinMaxScaler
+from visualization_script import visualize_results_from_model_folder
 
 
 print(f'torch {torch.__version__}')
@@ -144,25 +147,34 @@ def create_training_dataframe(password_,
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
                                      filepath=path_to_orig_file / label_csv_filename,
                                      number_of_profiles=number_of_profiles)
-    print(f"number of profiles: {len(labels)}")
+
     training_df = create_training_data(all_profiles=df_loadProfiles, labels=labels).set_index("timestamp")
+
+    numeric_cols = [col for col in df_loadProfiles.columns if is_number(col)]
+    sole_profiles = df_loadProfiles[numeric_cols].sum()
+    percentile_90 = np.percentile(sole_profiles, 50)
+    columns_to_remove = sole_profiles[sole_profiles > percentile_90].index
+    training_df = df_loadProfiles.drop(columns=columns_to_remove)
+
+    print(f"number of profiles: {training_df.shape[1]-13}")
 
     return training_df
 
 
 def train(
+        model_name: str,
         batchSize: int,
         dimNoise: int,
         training_df: pd.DataFrame,
         cluster_label,
         cluster_algorithm,
         loss: str,
+        iterations: int,
         epochCount=500,
         lr_dis=1e-5,
         lr_gen=1e-5,
         maxNorm=1e6,
-
-):
+        ):
     # create np array with target and features
     target,  min_max = create_numpy_matrix_for_gan(training_df.copy())
     # Configure GAN
@@ -175,7 +187,6 @@ def train(
 
     # featureCount = features.shape[1]  # stunden pro tag (pro label hat das model 24 werte)
     # testLabel = 0
-    model_name = 'ModelTestPhilipp'
     model = GAN(
         name=model_name,
         device=device,
@@ -189,7 +200,8 @@ def train(
         cluster_label=cluster_label,
         cluster_algorithm=cluster_algorithm,
         n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)]),
-        LossFct=loss
+        LossFct=loss,
+        iterations=iterations,
     )
     # save df_hull to the model folder so the generated data can be easily reshaped:
     # df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
@@ -219,16 +231,18 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
+    iterations = 8
+    model_name = f'gen_{iterations}_disc_1layer_128_gen_2layer_1024_256_over_50percentile'
     noise_dimension = 100
-    n_profiles = 1  # kann None sein, dann werden alle Profile genommen
+    n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 1
+    batchSize = 256
     epochs = 10000
-    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
+    Loss = "MAE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
     maxnorm = 100
-    assert batchSize <= n_profiles, "batchsize has to be smaller than training dataset!"
+    cluster_algorithm = "DBSCAN"
 
     train_df = create_training_dataframe(
         password_=password,
@@ -238,18 +252,43 @@ if __name__ == "__main__":
     )
 
     train(
+        model_name=model_name,
         batchSize=batchSize,
         dimNoise=noise_dimension,
         training_df=train_df,
         epochCount=epochs,
-        cluster_algorithm="DBSCAN",
+        cluster_algorithm=cluster_algorithm,
         cluster_label=cluster_label,
         lr_dis=lr_dis,
         lr_gen=lr_gen,
         maxNorm=maxnorm,
-        loss=Loss
+        loss=Loss,
+        iterations=iterations,
     )
     torch.cuda.empty_cache()
+
+    print("Training finished! \n \n ")
+    normalize = False
+    folder_name = f"models/{model_name}_" \
+                  f"Clustered={cluster_algorithm}_" \
+                  f"ClusterLabel={cluster_label}_" \
+                  f"NProfilesTrainedOn={train_df.shape[1]-13}_" \
+                  f"BatchSize={batchSize}_" \
+                  f"NoiseDim={noise_dimension}_" \
+                  f"Loss={Loss}_" \
+                  f"DisLR={lr_dis}_" \
+                  f"GenLR={lr_gen}"
+    print(f"visualization for {folder_name} started:")
+    # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
+    model_folder = Path(__file__).absolute().parent / folder_name
+    # real data
+    visualize_results_from_model_folder(
+        folder_path=model_folder,
+        noise_dimension=noise_dimension,
+        n_profiles_trained_on=train_df.shape[1]-13,
+        normalize=normalize,
+        train_df=train_df
+    )
 
     os.kill(pid, signal.SIGTERM)
     sys.exit()
