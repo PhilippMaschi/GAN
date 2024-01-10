@@ -1,6 +1,7 @@
 import cryptpandas as crp
 import os, sys, signal
 import getpass
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -11,6 +12,7 @@ from GAN_Philipp import GAN
 import argparse
 from sklearn.preprocessing import MinMaxScaler
 from visualization_script import visualize_results_from_model_folder
+from config import create_config, export_config
 
 
 print(f'torch {torch.__version__}')
@@ -170,10 +172,11 @@ def train(
         cluster_algorithm,
         loss: str,
         iterations: int,
+        folder_name: str,
         epochCount=500,
         lr_dis=1e-5,
         lr_gen=1e-5,
-        maxNorm=1e6,
+        maxNorm=1e6
         ):
     # create np array with target and features
     target,  min_max = create_numpy_matrix_for_gan(training_df.copy())
@@ -202,6 +205,7 @@ def train(
         n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)]),
         LossFct=loss,
         iterations=iterations,
+        folder_name=folder_name
     )
     # save df_hull to the model folder so the generated data can be easily reshaped:
     # df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
@@ -214,10 +218,18 @@ def train(
     orig_metadata.to_parquet(Path(model.folder_name) / "meta_data.parquet.gzip")
 
     model.train()
+    config = create_config(model)
+    export_config(config, folder_name)
     print(f"Training {model.folder_name} done""")
+    return config
 
 
 if __name__ == "__main__":
+    model_name = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
+    folder_name = f"models/{model_name}"
+    model_folder = Path(__file__).absolute().parent / folder_name
+    print(model_folder)
+
     parser = argparse.ArgumentParser(
         description='launches test torch')
     parser.add_argument("--password", default="Ene123Elec#4")
@@ -231,13 +243,12 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-    iterations = 8
-    model_name = f'gen_{iterations}_disc_1layer_128_gen_2layer_1024_256_over_50percentile'
+    iterations = 1
     noise_dimension = 100
     n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 256
-    epochs = 10000
+    epochs = 10
     Loss = "MAE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
@@ -256,6 +267,7 @@ if __name__ == "__main__":
         batchSize=batchSize,
         dimNoise=noise_dimension,
         training_df=train_df,
+        folder_name = folder_name,
         epochCount=epochs,
         cluster_algorithm=cluster_algorithm,
         cluster_label=cluster_label,
@@ -263,24 +275,15 @@ if __name__ == "__main__":
         lr_gen=lr_gen,
         maxNorm=maxnorm,
         loss=Loss,
-        iterations=iterations,
+        iterations=iterations
     )
     torch.cuda.empty_cache()
 
     print("Training finished! \n \n ")
     normalize = False
-    folder_name = f"models/{model_name}_" \
-                  f"Clustered={cluster_algorithm}_" \
-                  f"ClusterLabel={cluster_label}_" \
-                  f"NProfilesTrainedOn={train_df.shape[1]-13}_" \
-                  f"BatchSize={batchSize}_" \
-                  f"NoiseDim={noise_dimension}_" \
-                  f"Loss={Loss}_" \
-                  f"DisLR={lr_dis}_" \
-                  f"GenLR={lr_gen}"
+    
     print(f"visualization for {folder_name} started:")
     # model_folder = Path(r"X:\projects4\workspace_danielh_pr4\GAN") / Path(folder_name)
-    model_folder = Path(__file__).absolute().parent / folder_name
     # real data
     visualize_results_from_model_folder(
         folder_path=model_folder,

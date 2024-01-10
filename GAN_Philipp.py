@@ -9,7 +9,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from time import perf_counter
 from pathlib import Path
-import pytorch_lightning as pl
+#import pytorch_lightning as pl
 import matplotlib
 
 matplotlib.use('Agg')
@@ -122,7 +122,8 @@ class GAN:
                  cluster_algorithm: str,
                  n_profiles_trained_on: int,
                  LossFct: str,
-                 iteratations: int
+                 iterations: int,
+                 folder_name: str
                  ):
         super().__init__()
         self.name = name
@@ -138,18 +139,11 @@ class GAN:
         self.lossFct = LossFct
         self.lr_gen = lr_gen
         self.lr_dis = lr_dis
-        self.iterations = iteratations
-
-
-        self.folder_name = f"models/{self.name}_" \
-                           f"Clustered={cluster_algorithm}_" \
-                           f"ClusterLabel={cluster_label}_" \
-                           f"NProfilesTrainedOn={n_profiles_trained_on}_" \
-                           f"BatchSize={self.batchSize}_" \
-                           f"NoiseDim={self.dimNoise}_" \
-                           f"Loss={self.lossFct}_" \
-                           f"DisLR={lr_dis}_" \
-                           f"GenLR={lr_gen}"
+        self.iterations = iterations
+        self.cluster_label = cluster_label
+        self.cluster_algorithm = cluster_algorithm
+        self.folder_name = folder_name
+        self.n_profiles_trained_on = n_profiles_trained_on
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
