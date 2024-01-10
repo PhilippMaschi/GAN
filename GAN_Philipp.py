@@ -65,7 +65,7 @@ class Generator(nn.Module):
 
             # 7th layer
             nn.Linear(in_features=256, out_features=target_size),
-            nn.Sigmoid()
+            nn.Tanh()
         )
 
     def forward(self, noise):
@@ -122,7 +122,7 @@ class GAN:
                  cluster_algorithm: str,
                  n_profiles_trained_on: int,
                  LossFct: str,
-                 iteratations: int
+                 iterations: int
                  ):
         super().__init__()
         self.name = name
@@ -138,7 +138,7 @@ class GAN:
         self.lossFct = LossFct
         self.lr_gen = lr_gen
         self.lr_dis = lr_dis
-        self.iterations = iteratations
+        self.iterations = iterations
 
 
         self.folder_name = f"models/{self.name}_" \
@@ -290,7 +290,6 @@ class GAN:
                 self.optimDis.step()  # update the discriminator
 
                 # Train generator (now that we fed the discriminator with fake data)
-
                 for i in range(self.iterations):
                     self.Gen.zero_grad()
                     # let the discriminator label the fake data (now that the discriminator is updated)

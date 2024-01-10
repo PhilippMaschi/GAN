@@ -117,7 +117,7 @@ def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, 
     max_val = np.max(data)
 
     # Apply min-max scaling
-    scaled_matrix = (data - min_val) / (max_val - min_val)
+    scaled_matrix = ((data - min_val) / (max_val - min_val)) * 2 - 1
     min_max = np.array([min_val, max_val])
     number_of_profiles = scaled_matrix.shape[1]  # profiles have to be in the columns!
     number_of_days = int(scaled_matrix.shape[0] / 24)
@@ -154,11 +154,15 @@ def create_training_dataframe(password_,
     sole_profiles = df_loadProfiles[numeric_cols].sum()
     percentile_90 = np.percentile(sole_profiles, 50)
     columns_to_remove = sole_profiles[sole_profiles > percentile_90].index
+    percentile_10 = np.percentile(sole_profiles, 10)
+    columns_to_remove_2 = sole_profiles[sole_profiles < percentile_10].index
+
     training_df = df_loadProfiles.drop(columns=columns_to_remove)
+    training_df_2 = training_df.drop(columns=columns_to_remove_2)
 
-    print(f"number of profiles: {training_df.shape[1]-13}")
+    print(f"number of profiles: {training_df_2.shape[1]-13}")
 
-    return training_df
+    return training_df_2
 
 
 def train(
@@ -232,13 +236,13 @@ if __name__ == "__main__":
     pid = (os.getpid())
     print(pid)
     iterations = 8
-    model_name = f'gen_{iterations}_disc_1layer_128_gen_2layer_1024_256_over_50percentile'
+    model_name = f'gen_{iterations}_disc_1layer_128_gen_2layer_1024_256_TANH'
     noise_dimension = 100
     n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 256
+    batchSize = 16
     epochs = 10000
-    Loss = "MAE"  # BCE, MSE, KLDiv, MAE
+    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
     maxnorm = 100
