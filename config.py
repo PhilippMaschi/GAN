@@ -1,5 +1,5 @@
 import re
-
+from pathlib import Path
 from torch import nn
 
 
@@ -51,6 +51,10 @@ def create_config(model):
 def export_config(config, folderName):
     with open(f'{folderName}/config.txt', 'w') as file:
         file.write(config)
+    plot_folder = Path(__file__).absolute().parent / "plots" / Path(folderName).stem
+    with open(f'{plot_folder}/config.txt', "w") as file:
+        file.write(config)
+
 
 def import_config(model_folder):
     config = '\n\n' + open(model_folder + '/config.txt', 'r').read() + '\n'
