@@ -44,7 +44,8 @@ class Generator(nn.Module):
     def __init__(self,
                  noise_dim,
                  # feature_dim,
-                 target_shape):
+                 target_shape,
+                 config):
         """
         Args:
             noise_dim: is the dimension of the noise vector (which includes the features that are added)
@@ -53,20 +54,23 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.target_shape = target_shape
         target_size = torch.prod(torch.tensor(target_shape))
-        self.model = nn.Sequential(
-            # 1st layer
-            nn.Linear(in_features=noise_dim, out_features=256 * 4),
-            nn.BatchNorm1d(256 * 4),
-            nn.LeakyReLU(inplace=True),
+        if not config:
+            self.model = nn.Sequential(
+                # 1st layer
+                nn.Linear(in_features=noise_dim, out_features=256 * 4),
+                nn.BatchNorm1d(256 * 4),
+                nn.LeakyReLU(inplace=True),
 
-            nn.Linear(in_features=256 * 4, out_features=256),
-            nn.BatchNorm1d(num_features=256),
-            nn.LeakyReLU(inplace=True),
+                nn.Linear(in_features=256 * 4, out_features=256),
+                nn.BatchNorm1d(num_features=256),
+                nn.LeakyReLU(inplace=True),
 
-            # 7th layer
-            nn.Linear(in_features=256, out_features=target_size),
-            nn.Sigmoid()
-        )
+                # 7th layer
+                nn.Linear(in_features=256, out_features=target_size),
+                nn.Sigmoid()
+            )
+        else:
+            self.model = config['seq_gen']
 
     def forward(self, noise):
         output = self.model(noise)
@@ -74,25 +78,30 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, target_shape):
+    def __init__(self,
+                 target_shape,
+                 config):
         super(Discriminator, self).__init__()
 
         target_size = torch.prod(torch.tensor(target_shape))
-        self.model = nn.Sequential(
-            # todo try Conv1D, Conv2D
-            # n_profiles, (51, 7, 24),  2D or 1D (1D lernt Tage und 2D lernt wochen mit, bezieht sich auf die letzen dimensionen)
-            # nn.Conv2d(in_channels=24, out_channels=64, kernel_size=24),  # batch, 365, 1, 64
-            # nn.Flatten(),  # batch, 365*16
+        if not config:
+            self.model = nn.Sequential(
+                # todo try Conv1D, Conv2D
+                # n_profiles, (51, 7, 24),  2D or 1D (1D lernt Tage und 2D lernt wochen mit, bezieht sich auf die letzen dimensionen)
+                # nn.Conv2d(in_channels=24, out_channels=64, kernel_size=24),  # batch, 365, 1, 64
+                # nn.Flatten(),  # batch, 365*16
 
-            # 1st layer
-            nn.Linear(in_features=target_size, out_features=128),
-            nn.BatchNorm1d(128),
-            nn.LeakyReLU(inplace=True),
+                # 1st layer
+                nn.Linear(in_features=target_size, out_features=128),
+                nn.BatchNorm1d(128),
+                nn.LeakyReLU(inplace=True),
 
-            # layer
-            nn.Linear(in_features=128, out_features=1),
-            nn.Sigmoid()
-        )
+                # layer
+                nn.Linear(in_features=128, out_features=1),
+                nn.Sigmoid()
+            )
+        else:
+            self.model = config['seq_dis']
 
     # todo LOSS correction, shallow network (128 to 64 after should be able to aprox mean ), if that works add another
     #  layer or make layer deeper, remove dropout or batchnorm (batchnorm might be better), normalize over all profiles,
@@ -123,7 +132,8 @@ class GAN:
                  n_profiles_trained_on: int,
                  LossFct: str,
                  iterations: int,
-                 folder_name: str
+                 folder_name: str,
+                 config: dict = None
                  ):
         super().__init__()
         self.name = name
@@ -144,6 +154,7 @@ class GAN:
         self.cluster_algorithm = cluster_algorithm
         self.folder_name = folder_name
         self.n_profiles_trained_on = n_profiles_trained_on
+        self.config = config
 
         Path(self.folder_name).mkdir(parents=True, exist_ok=True)
         # if there is files in this folder, delete them
@@ -158,11 +169,11 @@ class GAN:
         self.dataLoader = DataLoader(self.dataset, batch_size=self.batchSize, shuffle=True)  # True)
 
         # Initialize generator, input is noise + labels (dimLatent) and output is 24 (target shape)
-        self.Gen = Generator(self.dimNoise, self.target.shape[-2:])
+        self.Gen = Generator(self.dimNoise, self.target.shape[-2:], self.config)
         self.Gen.to(self.device)
 
         # Initialize discriminator
-        self.Dis = Discriminator(self.target.shape[-2:])  # discriminator gets vector with 24 values
+        self.Dis = Discriminator(self.target.shape[-2:], self.config)  # discriminator gets vector with 24 values
         self.Dis.to(self.device)
 
         # Initialize optimizers
@@ -410,7 +421,7 @@ def generate_data_from_saved_model(
         device = "cuda:0"
     else:
         device = "cpu"
-    generator = Generator(noise_dim, target_shape=targetShape[-2:])
+    generator = Generator(noise_dim, target_shape=targetShape[-2:], config=None)
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)

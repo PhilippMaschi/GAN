@@ -56,8 +56,8 @@ def export_config(config, folderName):
         file.write(config)
 
 
-def import_config(model_folder):
-    config = '\n\n' + open(model_folder + '/config.txt', 'r').read() + '\n'
+def import_config(model_name):
+    config = '\n\n' + open('models/' + model_name + '/config.txt', 'r').read() + '\n'
     config = re.split(r'\n\n[a-zA-Z]+\n', config)[1:]
     config = {
         'seq_gen': eval(config[0]),

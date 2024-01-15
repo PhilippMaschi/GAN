@@ -12,7 +12,7 @@ from GAN_Philipp import GAN
 import argparse
 from sklearn.preprocessing import MinMaxScaler
 from visualization_script import visualize_results_from_model_folder
-from config import create_config, export_config
+from config import create_config, export_config, import_config
 
 
 print(f'torch {torch.__version__}')
@@ -209,7 +209,8 @@ def train(
         n_profiles_trained_on=len([col for col in training_df.columns if is_number(col)]),
         LossFct=loss,
         iterations=iterations,
-        folder_name=folder_name
+        folder_name=folder_name,
+        #config = import_config(model_name = '2024_01_15_110357375')
     )
     # save df_hull to the model folder so the generated data can be easily reshaped:
     # df_hull.to_parquet(Path(model.folder_name) / "hull.parquet.gzip")
