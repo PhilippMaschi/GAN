@@ -421,7 +421,7 @@ def generate_data_from_saved_model(
         device = "cuda:0"
     else:
         device = "cpu"
-    generator = Generator(noise_dim, target_shape=targetShape[-2:])
+    generator = Generator(noise_dim, target_shape=targetShape[-2:], None)
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     generator.load_state_dict(checkpoint['generator_state_dict'])
     generator.to(device)
