@@ -144,7 +144,7 @@ def create_training_dataframe(password_,
     # Data import
     # all load profiles:
     df_loadProfiles = crp.read_encrypted(path=path_to_orig_file / 'all_profiles.crypt', password=password_)
-
+    # todo mit pandas profile mit ausreißer filtern
     # filter the total amount of profiles:
     labels = load_labels_for_cluster(clusterLabel=clusterLabel,
                                      filepath=path_to_orig_file / label_csv_filename,
@@ -162,9 +162,9 @@ def create_training_dataframe(password_,
     training_df = df_loadProfiles.drop(columns=columns_to_remove)
     training_df_2 = training_df.drop(columns=columns_to_remove_2)
 
-    print(f"number of profiles: {training_df_2.shape[1]-13}")
+    # print(f"number of profiles: {training_df_2.shape[1]-13}")
 
-    return training_df_2
+    return df_loadProfiles
 
 
 def train(
@@ -247,13 +247,13 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-    iterations = 1
+    iterations = 4
     noise_dimension = 100
     n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 256
+    batchSize = 16
     epochs = 10
-    Loss = "MAE"  # BCE, MSE, KLDiv, MAE
+    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
     maxnorm = 100
@@ -271,7 +271,7 @@ if __name__ == "__main__":
         batchSize=batchSize,
         dimNoise=noise_dimension,
         training_df=train_df,
-        folder_name = folder_name,
+        folder_name=folder_name,
         epochCount=epochs,
         cluster_algorithm=cluster_algorithm,
         cluster_label=cluster_label,
