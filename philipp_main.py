@@ -95,6 +95,11 @@ def create_training_data(all_profiles: pd.DataFrame, labels: list):
     df_profiles = all_profiles[meta_data_cols + labels]
     return df_profiles
 
+def find_outliers(series):
+    q1 = series.quantile(0.25)
+    q3 = series.quantile(0.75)
+    IQR = q3 - q1
+    return (series < q1 - 1.5*IQR) | (series > q3 + 1.5*IQR)
 
 def create_numpy_matrix_for_gan(df_train: pd.DataFrame) -> (np.array, np.array, pd.DataFrame):
     """
@@ -158,13 +163,15 @@ def create_training_dataframe(password_,
     columns_to_remove = sole_profiles[sole_profiles > percentile_90].index
     percentile_10 = np.percentile(sole_profiles, 10)
     columns_to_remove_2 = sole_profiles[sole_profiles < percentile_10].index
+    columns_to_remove_3 = df_loadProfiles[numeric_cols].columns[find_outliers(df_loadProfiles[numeric_cols].max()) | find_outliers(df_loadProfiles[numeric_cols].min())]
 
     training_df = df_loadProfiles.drop(columns=columns_to_remove)
-    training_df_2 = training_df.drop(columns=columns_to_remove_2)
+    training_df.drop(columns=columns_to_remove_2, inplace = True)
+    training_df.drop(columns=columns_to_remove_3, inplace = True, errors='ignore')
 
-    # print(f"number of profiles: {training_df_2.shape[1]-13}")
+    #print(f"number of profiles: {training_df.shape[1]-13}")
 
-    return df_loadProfiles
+    return training_df
 
 
 def train(
@@ -183,6 +190,7 @@ def train(
         maxNorm=1e6
         ):
     # create np array with target and features
+    training_df.to_csv('profiles_0.csv', index = False)
     target,  min_max = create_numpy_matrix_for_gan(training_df.copy())
     # Configure GAN
     if 1 and torch.cuda.is_available():
@@ -248,12 +256,12 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-    iterations = 4
+    iterations = 1
     noise_dimension = 100
     n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
-    batchSize = 16
-    epochs = 10
+    batchSize = 256
+    epochs = 1000
     Loss = "BCE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
