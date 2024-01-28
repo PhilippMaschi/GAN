@@ -6,6 +6,7 @@ from torch import nn
 
 from daniel_preproc import data_preparation_wrapper, get_categorical_columns, gan_input_wrapper
 from daniel_GAN import GAN, generate_data_from_saved_model
+from daniel_plots import plot_wrapper
 
 ####################################################################################################
 
@@ -35,18 +36,22 @@ modelGen = nn.Sequential(   #https://towardsdatascience.com/conv2d-to-finally-un
     nn.ConvTranspose2d(in_channels = dimNoise, out_channels = 8*dimHidden, kernel_size = 3, stride = 1, padding = 0, bias = False),
     nn.BatchNorm2d(num_features = 8*dimHidden),
     nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.1),
     # 2nd layer
     nn.ConvTranspose2d(in_channels = 8*dimHidden, out_channels = 4*dimHidden, kernel_size = 3, stride = 2, padding = 0, bias = False),
     nn.BatchNorm2d(num_features = 4*dimHidden),
     nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.1),
     # 3rd layer
     nn.ConvTranspose2d(in_channels = 4*dimHidden, out_channels = 2*dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 1), bias = False),
     nn.BatchNorm2d(num_features = 2*dimHidden),
     nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.1),
     # 4th layer
     nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
     nn.BatchNorm2d(num_features = dimHidden),
     nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.1),
     # Output layer
     nn.ConvTranspose2d(in_channels = dimHidden, out_channels = channelCount, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
     nn.Tanh()
@@ -115,3 +120,5 @@ if __name__ == '__main__':
         profileCount = X_trainProcd.shape[0],
         dimNoise = dimNoise
     )
+
+    plot_wrapper(X_train, X_synth, df_hull, outputPath)

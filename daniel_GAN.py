@@ -8,6 +8,7 @@ import re
 import numpy as np
 
 from daniel_preproc import revert_reshape_arr, invert_min_max_scaler
+from daniel_plots import plot_losses
 
 
 FEATURE_RANGE = (-1, 1)
@@ -72,12 +73,14 @@ class GAN:
         self.Gen = Generator(model = self.modelGen).to(device = self.device)
         self.Dis = Discriminator(model = self.modelDis).to(device = self.device)
         self.lossFct = self.getLossFct()
-        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen)
-        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis)
+        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = (0.5, 0.999))
+        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = (0.5, 0.999))
 
         self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'])
         self.modelPath = self.outputPath / 'models'
         os.makedirs(self.modelPath)
+        self.plotPath = self.outputPath / 'plots'
+        os.makedirs(self.plotPath)
 
     def getLossFct(self):
         match self.lossFct:
@@ -144,6 +147,9 @@ class GAN:
             if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
                 self.save_model_state(epoch)
         
+        # Plot losses
+        plot_losses(self.df_loss, self.plotPath)
+
         # Save losses in CSV file
         self.df_loss.to_csv(self.outputPath / 'losses.csv', index = False)
 
