@@ -57,17 +57,17 @@ class Generator(nn.Module):
         if not config:
             self.model = nn.Sequential(
                 # 1st layer
-                nn.Linear(in_features=noise_dim, out_features=256 * 4),
-                nn.BatchNorm1d(256 * 4),
+                nn.Linear(in_features=noise_dim, out_features=256 * 10),
+                nn.BatchNorm1d(256 * 10),
                 nn.LeakyReLU(inplace=True),
 
-                nn.Linear(in_features=256 * 4, out_features=256),
+                nn.Linear(in_features=256 * 10, out_features=256),
                 nn.BatchNorm1d(num_features=256),
                 nn.LeakyReLU(inplace=True),
 
                 # 7th layer
                 nn.Linear(in_features=256, out_features=target_size),
-                nn.Sigmoid()
+                nn.Tanh()
             )
         else:
             self.model = config['seq_gen']
@@ -433,11 +433,11 @@ def generate_data_from_saved_model(
         if not normalized:
             min_val, max_val = min_max[0], min_max[1]
             # Apply min-max scaling inverted
-            scaled_samples = generated_samples * (max_val - min_val) + min_val
+            rescaled_samples = rescaled_samples = (generated_samples + 1)*(max_val - min_val)/2
         else:
-            scaled_samples = generated_samples
+            rescaled_samples = generated_samples
 
-    return scaled_samples
+    return rescaled_samples
 
 
 if __name__ == "__main__":

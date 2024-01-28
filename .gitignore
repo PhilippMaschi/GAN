@@ -21,3 +21,4 @@ plots/*
 .idea/
 clustering/
 model/
+*.npy

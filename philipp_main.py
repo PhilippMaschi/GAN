@@ -256,13 +256,13 @@ if __name__ == "__main__":
 
     pid = (os.getpid())
     print(pid)
-    iterations = 1
+    iterations = 5
     noise_dimension = 100
     n_profiles = None  # kann None sein, dann werden alle Profile genommen
     cluster_label = 0
     batchSize = 256
     epochs = 1000
-    Loss = "BCE"  # BCE, MSE, KLDiv, MAE
+    Loss = "MSE"  # BCE, MSE, KLDiv, MAE
     lr_dis = 0.000_2
     lr_gen = 0.000_01
     maxnorm = 100
