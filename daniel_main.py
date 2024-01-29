@@ -26,8 +26,8 @@ lrGen = 1e-4/2
 lrDis = 1e-4/2
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 epochCount = 170
-labelReal = 1
-labelFake = 0
+labelReal = 0
+labelFake = 1
 dimNoise = 100
 
 dimHidden = 64

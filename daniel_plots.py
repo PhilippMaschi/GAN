@@ -106,7 +106,7 @@ def plot_examples(X, plotPath, Xtype: ['real', 'synth']):
         axes[i].imshow(X[:, i].reshape(-1, 24*7), cmap = 'hot')
         axes[i].set_xlabel('Hour of the week')
         axes[i].set_ylabel('Week')
-    plt.suptitle('Heatmaps of example profiles')
+    plt.suptitle(f'Heatmaps of example profiles ({Xtype})')
     plt.tight_layout()
     plt.savefig(plotPath / f'{Xtype}_example_profiles.png')
     plt.close();
