@@ -50,8 +50,7 @@ class GAN:
             labelFake,
             dimNoise,
             outputPath,
-            modelSaveFreq,
-            seed = 0
+            modelSaveFreq
         ):
         super().__init__()
         self.dataset = dataset
@@ -68,7 +67,6 @@ class GAN:
         self.dimNoise = dimNoise
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
-        self.seed = seed
 
         self.dataLoader = \
             DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
@@ -113,8 +111,6 @@ class GAN:
         return lossFct
 
     def train(self):
-        if self.seed:
-            torch.manual_seed(self.seed)
         for epoch in tqdm(range(self.epochCount)):
             for batchIdx, data in enumerate(self.dataLoader):
                 xReal = data.to(device = self.device, dtype = float32)
