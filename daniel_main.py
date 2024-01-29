@@ -6,6 +6,7 @@ from torch import nn
 
 from daniel_preproc import data_preparation_wrapper, get_categorical_columns, gan_input_wrapper
 from daniel_GAN import GAN, generate_data_from_saved_model
+from daniel_config import config_wrapper
 from daniel_plots import plot_wrapper
 
 ####################################################################################################
@@ -112,6 +113,7 @@ if __name__ == '__main__':
         outputPath = outputPath,
         modelSaveFreq = modelSaveFreq
     )
+    config_wrapper(model, outputPath)
     model.train()
     X_synth = generate_data_from_saved_model(
         runPath = outputPath,

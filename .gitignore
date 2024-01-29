@@ -22,3 +22,4 @@ plots/*
 clustering/
 model/
 *.npy
+*.txt
