@@ -5,6 +5,9 @@ models/*
 !models/*.txt
 plots/*
 !plots/*.txt
+*.ipynb_checkpoints/
+.idea/
+clustering/
 *.csv
 *.xlsx
 *.json
@@ -15,11 +18,5 @@ plots/*
 *.html
 *.pt
 *.ipynb
-!main.ipynb
-!main_2.ipynb
-*.ipynb_checkpoints/
-.idea/
-clustering/
-model/
 *.npy
 *.txt

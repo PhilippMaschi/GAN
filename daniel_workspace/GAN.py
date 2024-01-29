@@ -7,8 +7,8 @@ import torch
 import re
 import numpy as np
 
-from daniel_preproc import revert_reshape_arr, invert_min_max_scaler
-from daniel_plots import plot_losses
+from preproc import revert_reshape_arr, invert_min_max_scaler
+from plots import plot_losses
 
 
 FEATURE_RANGE = (-1, 1)

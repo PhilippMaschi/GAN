@@ -4,10 +4,10 @@ import os
 import torch
 from torch import nn
 
-from daniel_preproc import data_preparation_wrapper, get_categorical_columns, gan_input_wrapper
-from daniel_GAN import GAN, generate_data_from_saved_model
-from daniel_config import config_wrapper
-from daniel_plots import plot_wrapper
+from preproc import data_preparation_wrapper, get_categorical_columns, gan_input_wrapper
+from GAN import GAN, generate_data_from_saved_model
+from config import config_wrapper
+from plots import plot_wrapper
 
 ####################################################################################################
 
@@ -79,7 +79,7 @@ modelDis = nn.Sequential(
 )
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
-outputPath = Path().absolute() / 'runs' / runName
+outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / runName
 os.makedirs(outputPath)
 modelSaveFreq = 50
 
