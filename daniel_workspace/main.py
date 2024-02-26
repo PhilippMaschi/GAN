@@ -99,13 +99,25 @@ modelDis = nn.Sequential(
 )
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
-outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / runName
-os.makedirs(outputPath)
+
 modelSaveFreq = 50
 
 ####################################################################################################
 
 if __name__ == '__main__':
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="GAN",
+
+        # mode='offline',
+
+        # track hyperparameters and run metadata
+        config=hyperparams
+    )
+    model_name = wandb.run.name
+    outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / f"{model_name}_{runName}"
+    os.makedirs(outputPath)
     df_train = data_preparation_wrapper(
         dataFilePath = inputPath / inputFilename,
         password = inputPassword,
@@ -137,21 +149,13 @@ if __name__ == '__main__':
     )
     config_wrapper(model, outputPath)
 
-    # start a new wandb run to track this script
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="GAN",
 
-        # mode='offline',
-
-        # track hyperparameters and run metadata
-        config=hyperparams
-    )
 
     wandb.watch(model)
     model.train()
-
     wandb.finish()
+
+
 
     X_synth = generate_data_from_saved_model(
         runPath = outputPath,
