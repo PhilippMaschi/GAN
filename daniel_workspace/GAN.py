@@ -34,7 +34,7 @@ class Discriminator(nn.Module):
         return output
 
 
-class GAN:
+class GAN(nn.Module):
     def __init__(
             self,
             dataset,
@@ -50,7 +50,8 @@ class GAN:
             labelFake,
             dimNoise,
             outputPath,
-            modelSaveFreq
+            modelSaveFreq,
+            wandb,
         ):
         super().__init__()
         self.dataset = dataset
@@ -67,6 +68,7 @@ class GAN:
         self.dimNoise = dimNoise
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
+        self.wandb = wandb
 
         self.dataLoader = \
             DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
@@ -112,6 +114,7 @@ class GAN:
 
     def train(self):
         for epoch in tqdm(range(self.epochCount)):
+            total_loss_Gen, total_loss_DisFake, total_loss_DisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
                 xReal = data.to(device = self.device, dtype = float32)
                 labelsReal = \
@@ -140,8 +143,18 @@ class GAN:
                 lossGen.backward()
                 self.optimGen.step()
 
+                total_loss_Gen += lossGen.cpu().item()
+                total_loss_DisFake += lossDisFake.cpu().item()
+                total_loss_DisReal += lossDisReal.cpu().item()
+
                 # Log progress
                 self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen)
+
+            self.wandb.log({
+                "lossGen": total_loss_Gen / len(self.dataLoader),
+                "lossDisFake": total_loss_DisFake / len(self.dataLoader),
+                "lossDisReal": total_loss_DisReal / len(self.dataLoader),
+            })
 
             # Save model state
             if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
