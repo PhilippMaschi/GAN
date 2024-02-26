@@ -33,6 +33,7 @@ dimNoise = 100
 
 dimHidden = 64
 channelCount = 24
+betas = (0.5, 0.999)
 
 hyperparams = {
     "batchSize": batchSize,
@@ -46,6 +47,7 @@ hyperparams = {
     "dimNoise": dimNoise,
     "dimHidden": dimHidden,
     "channelCount": channelCount,
+    "betas": betas
 
 }
 
@@ -130,7 +132,8 @@ if __name__ == '__main__':
         dimNoise = dimNoise,
         outputPath = outputPath,
         modelSaveFreq = modelSaveFreq,
-        wandb=wandb
+        wandb=wandb,
+        betas=betas
     )
     config_wrapper(model, outputPath)
 

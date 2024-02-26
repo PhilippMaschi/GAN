@@ -52,6 +52,7 @@ class GAN(nn.Module):
             outputPath,
             modelSaveFreq,
             wandb,
+            betas,
         ):
         super().__init__()
         self.dataset = dataset
@@ -69,14 +70,15 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
         self.wandb = wandb
+        self.betas = betas
 
         self.dataLoader = \
             DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
         self.Gen = Generator(model = self.modelGen).to(device = self.device)
         self.Dis = Discriminator(model = self.modelDis).to(device = self.device)
         self.lossFct = self.getLossFct()
-        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = (0.5, 0.999))
-        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = (0.5, 0.999))
+        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = self.betas)
+        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = self.betas)
 
         self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'])
         self.modelPath = self.outputPath / 'models'
