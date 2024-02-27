@@ -12,7 +12,8 @@ from plots import plot_wrapper
 
 ####################################################################################################
 
-inputPath = Path().absolute().parent.parent / 'GAN_data'
+inputPath = Path().absolute().parent / 'GAN_data'
+print(inputPath)
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
@@ -31,7 +32,7 @@ lrGen = 1e-4/3
 lrDis = 1e-4/2
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-epochCount = 45
+epochCount = 300
 labelReal = 0
 labelFake = 1
 dimNoise = 90
@@ -148,8 +149,7 @@ if __name__ == '__main__':
         dimNoise = dimNoise,
         outputPath = outputPath,
         modelSaveFreq = modelSaveFreq,
-        wandb=wandb,
-        betas=betas
+        wandb = wandb
     )
     config_wrapper(model, outputPath)
     wandb.watch(model)

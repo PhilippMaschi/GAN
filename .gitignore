@@ -21,3 +21,4 @@ clustering/
 *.npy
 *.txt
 */moderate-webviewer/*
+wandb/
