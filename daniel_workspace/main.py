@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 import torch
 from torch import nn
+import wandb
 
 from preproc import data_preparation_wrapper, get_categorical_columns, save_profile_IDs, gan_input_wrapper
 from GAN import GAN, generate_data_from_saved_model
@@ -11,7 +12,7 @@ from plots import plot_wrapper
 
 ####################################################################################################
 
-inputPath = Path().absolute().parent / 'GAN_data'
+inputPath = Path().absolute().parent.parent / 'GAN_data'
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
@@ -39,6 +40,24 @@ dimNoise = 90
 
 dimHidden = 64
 channelCount = 24
+betas = (0.5, 0.999)
+
+hyperparams = {
+    "batchSize": batchSize,
+    "lossFct": lossFct,
+    "lrGen": lrGen,
+    "lrDis": lrDis,
+    "device": device,
+    "epochCount": epochCount,
+    "labelReal": labelReal,
+    "labelFake": labelFake,
+    "dimNoise": dimNoise,
+    "dimHidden": dimHidden,
+    "channelCount": channelCount,
+    "betas": betas
+
+}
+
 modelGen = nn.Sequential(   #https://towardsdatascience.com/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
     # 1st layer
     nn.ConvTranspose2d(in_channels = dimNoise, out_channels = 8*dimHidden, kernel_size = 3, stride = 1, padding = 0, bias = False),
@@ -93,6 +112,19 @@ modelDis = nn.Sequential(
 ####################################################################################################
 
 if __name__ == '__main__':
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="GAN",
+
+        # mode='offline',
+
+        # track hyperparameters and run metadata
+        config=hyperparams
+    )
+    model_name = wandb.run.name
+    outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / f"{model_name}_{runName}"
+    os.makedirs(outputPath)
     df_train = data_preparation_wrapper(
         dataFilePath = inputPath / inputFilename,
         password = inputPassword,
@@ -120,10 +152,20 @@ if __name__ == '__main__':
         labelFake = labelFake,
         dimNoise = dimNoise,
         outputPath = outputPath,
-        modelSaveFreq = modelSaveFreq
+        modelSaveFreq = modelSaveFreq,
+        wandb=wandb,
+        betas=betas
     )
     config_wrapper(model, outputPath)
+
+
+
+    wandb.watch(model)
     model.train()
+    wandb.finish()
+
+
+
     X_synth = generate_data_from_saved_model(
         runPath = outputPath,
         modelGen = modelGen,
