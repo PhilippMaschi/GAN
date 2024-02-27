@@ -20,8 +20,6 @@ clusterLabels = [0]
 maxProfileCount = None
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
-outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / runName
-os.makedirs(outputPath)
 dimData = 3
 modelSaveFreq = 200
 
@@ -31,32 +29,17 @@ batchSize = 15
 lossFct = 'BCE'
 lrGen = 1e-4/3
 lrDis = 1e-4/2
-betas = (0.4, 0.999)
+betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 epochCount = 45
 labelReal = 0
 labelFake = 1
 dimNoise = 90
 
+####################################################################################################
+
 dimHidden = 64
 channelCount = 24
-betas = (0.5, 0.999)
-
-hyperparams = {
-    "batchSize": batchSize,
-    "lossFct": lossFct,
-    "lrGen": lrGen,
-    "lrDis": lrDis,
-    "device": device,
-    "epochCount": epochCount,
-    "labelReal": labelReal,
-    "labelFake": labelFake,
-    "dimNoise": dimNoise,
-    "dimHidden": dimHidden,
-    "channelCount": channelCount,
-    "betas": betas
-
-}
 
 modelGen = nn.Sequential(   #https://towardsdatascience.com/conv2d-to-finally-understand-what-happens-in-the-forward-pass-1bbaafb0b148
     # 1st layer
@@ -111,19 +94,31 @@ modelDis = nn.Sequential(
 
 ####################################################################################################
 
+wandbHyperparams = {
+    'batchSize': batchSize,
+    'lossFct': lossFct,
+    'lrGen': lrGen,
+    'lrDis': lrDis,
+    'device': device,
+    'epochCount': epochCount,
+    'labelReal': labelReal,
+    'labelFake': labelFake,
+    'dimNoise': dimNoise,
+    'dimHidden': dimHidden,
+    'channelCount': channelCount,
+    'betas': betas
+}
+
+####################################################################################################
+
 if __name__ == '__main__':
-    # start a new wandb run to track this script
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="GAN",
-
-        # mode='offline',
-
-        # track hyperparameters and run metadata
-        config=hyperparams
+    wandb.init( #start a new wandb run to track this script
+        project = 'GAN',    #set the wandb project where this run will be logged
+        #mode = 'offline',
+        config = wandbHyperparams    #track hyperparameters and run metadata
     )
-    model_name = wandb.run.name
-    outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / f"{model_name}_{runName}"
+    modelName = wandb.run.name
+    outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / f'{modelName}_{runName}'
     os.makedirs(outputPath)
     df_train = data_preparation_wrapper(
         dataFilePath = inputPath / inputFilename,
@@ -157,15 +152,9 @@ if __name__ == '__main__':
         betas=betas
     )
     config_wrapper(model, outputPath)
-
-
-
     wandb.watch(model)
     model.train()
     wandb.finish()
-
-
-
     X_synth = generate_data_from_saved_model(
         runPath = outputPath,
         modelGen = modelGen,

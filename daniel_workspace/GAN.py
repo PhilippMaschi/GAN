@@ -52,8 +52,7 @@ class GAN(nn.Module):
             dimNoise,
             outputPath,
             modelSaveFreq,
-            wandb,
-            betas,
+            wandb
         ):
         super().__init__()
         self.dataset = dataset
@@ -72,7 +71,6 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
         self.wandb = wandb
-        self.betas = betas
 
         self.dataLoader = \
             DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
@@ -155,9 +153,9 @@ class GAN(nn.Module):
                 self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen)
 
             self.wandb.log({
-                "lossGen": total_loss_Gen / len(self.dataLoader),
-                "lossDisFake": total_loss_DisFake / len(self.dataLoader),
-                "lossDisReal": total_loss_DisReal / len(self.dataLoader),
+                'lossGen': total_loss_Gen / len(self.dataLoader),
+                'lossDisFake': total_loss_DisFake / len(self.dataLoader),
+                'lossDisReal': total_loss_DisReal / len(self.dataLoader),
             })
 
             # Save model state
