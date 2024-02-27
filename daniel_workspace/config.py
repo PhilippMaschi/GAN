@@ -34,7 +34,17 @@ def create_config(model):
     gen = tSeq_string_wrapper(str(model.Gen.model))
     dis = tSeq_string_wrapper(str(model.Dis.model))
     config = f'Generator\n{gen}\n\n' \
-             f'Discriminator\n{dis}'
+             f'Discriminator\n{dis}\n\n' \
+             f'Batch size\n{model.batchSize}\n\n' \
+             f'Loss function\n{model.lossFct.__str__()}\n\n' \
+             f'Learning rate (Generator)\n{model.lrGen}\n\n' \
+             f'Learning rate (Discriminator)\n{model.lrDis}\n\n' \
+             f'Betas\n{str(model.betas)}\n\n' \
+             f'Device\n{model.device.type}\n\n' \
+             f'Epoch count\n{model.epochCount}\n\n' \
+             f'Label (real)\n{model.labelReal}\n\n' \
+             f'Label (fake)\n{model.labelReal}\n\n' \
+             f'Noise dimension\n{model.dimNoise}\n\n'
     return config
 
 

@@ -4,7 +4,7 @@ import os
 import torch
 from torch import nn
 
-from preproc import data_preparation_wrapper, get_categorical_columns, gan_input_wrapper
+from preproc import data_preparation_wrapper, get_categorical_columns, save_profile_IDs, gan_input_wrapper
 from GAN import GAN, generate_data_from_saved_model
 from config import config_wrapper
 from plots import plot_wrapper
@@ -15,20 +15,27 @@ inputPath = Path().absolute().parent / 'GAN_data'
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
-clusterLabel = 0
+clusterLabels = [0]
 maxProfileCount = None
+
+runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
+outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / runName
+os.makedirs(outputPath)
+dimData = 3
+modelSaveFreq = 200
 
 ####################################################################################################
 
-batchSize = 10
+batchSize = 15
 lossFct = 'BCE'
-lrGen = 1e-4/2
+lrGen = 1e-4/3
 lrDis = 1e-4/2
+betas = (0.4, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-epochCount = 170
+epochCount = 45
 labelReal = 0
 labelFake = 1
-dimNoise = 100
+dimNoise = 90
 
 dimHidden = 64
 channelCount = 24
@@ -49,7 +56,12 @@ modelGen = nn.Sequential(   #https://towardsdatascience.com/conv2d-to-finally-un
     nn.ReLU(inplace = True),
     nn.Dropout2d(p = 0.1),
     # 4th layer
-    nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
+    nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = 2*dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
+    nn.BatchNorm2d(num_features = 2*dimHidden),
+    nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.1),
+    # 5th layer
+    nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = dimHidden, kernel_size = 3, stride = (1, 1), padding = (1, 1), bias = False),
     nn.BatchNorm2d(num_features = dimHidden),
     nn.ReLU(inplace = True),
     nn.Dropout2d(p = 0.1),
@@ -78,11 +90,6 @@ modelDis = nn.Sequential(
     nn.Sigmoid()
 )
 
-runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
-outputPath = Path().absolute() / 'daniel_workspace' / 'runs' / runName
-os.makedirs(outputPath)
-modelSaveFreq = 50
-
 ####################################################################################################
 
 if __name__ == '__main__':
@@ -90,11 +97,12 @@ if __name__ == '__main__':
         dataFilePath = inputPath / inputFilename,
         password = inputPassword,
         labelsFilePath = inputPath / labelsFilename,
-        clusterLabel = clusterLabel,
+        clusterLabels = clusterLabels,
         maxProfileCount = maxProfileCount
     )
-    X_trainProcd, X_train, minMax = gan_input_wrapper(df_train, outputPath) #Procd... processed, meaning normalized and reshaped
+    X_trainProcd, X_train, minMax = gan_input_wrapper(df_train, dimData, outputPath) #Procd... processed, meaning normalized and reshaped
     df_hull = get_categorical_columns(df_train)
+    save_profile_IDs(df_train, outputPath)
     del df_train
 
     model = GAN(
@@ -105,6 +113,7 @@ if __name__ == '__main__':
         lossFct = lossFct,
         lrGen = lrGen,
         lrDis = lrDis,
+        betas = betas,
         device = device,
         epochCount = epochCount,
         labelReal = labelReal,
@@ -120,7 +129,8 @@ if __name__ == '__main__':
         modelGen = modelGen,
         device = device,
         profileCount = X_trainProcd.shape[0],
-        dimNoise = dimNoise
+        dimNoise = dimNoise,
+        dimData = dimData
     )
 
     plot_wrapper(X_train, X_synth, df_hull, outputPath)

@@ -44,6 +44,7 @@ class GAN:
             lossFct,
             lrGen,
             lrDis,
+            betas,
             device,
             epochCount,
             labelReal,
@@ -60,6 +61,7 @@ class GAN:
         self.lossFct = lossFct
         self.lrGen = lrGen
         self.lrDis = lrDis
+        self.betas = betas
         self.device = device
         self.epochCount = epochCount
         self.labelReal = labelReal
@@ -73,8 +75,8 @@ class GAN:
         self.Gen = Generator(model = self.modelGen).to(device = self.device)
         self.Dis = Discriminator(model = self.modelDis).to(device = self.device)
         self.lossFct = self.getLossFct()
-        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = (0.5, 0.999))
-        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = (0.5, 0.999))
+        self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = self.betas)
+        self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = self.betas)
 
         self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'])
         self.modelPath = self.outputPath / 'models'
@@ -172,6 +174,7 @@ def generate_data_from_saved_model(
         device,
         profileCount,
         dimNoise,
+        dimData,
         invertNorm = True
     ):
     file_dict = {
@@ -187,7 +190,7 @@ def generate_data_from_saved_model(
     noise = randn(profileCount, dimNoise, 1, 1, device = device)    #! generalization needed
     xSynth = Gen(noise)
     xSynth = xSynth.cpu().detach().numpy()
-    xSynth = revert_reshape_arr(xSynth)
+    xSynth = revert_reshape_arr(xSynth, dimData)
     if invertNorm:
         xSynth = invert_min_max_scaler(xSynth, minMax)
     return xSynth

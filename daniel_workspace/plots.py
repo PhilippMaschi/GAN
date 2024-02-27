@@ -11,6 +11,7 @@ def plot_losses(df, plotPath):
     plt.title('Training losses')
     plt.xlabel('epoch × batch_index')
     plt.ylabel('value')
+    plt.ylim(0, 10)
     plt.savefig(plotPath / 'training_losses.png')
     plt.close();
 

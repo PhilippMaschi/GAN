@@ -23,9 +23,9 @@ def import_labels(filePath):
     return df
 
 
-def get_labels_for_cluster(filePath, clusterLabel):
+def get_labels_for_cluster(filePath, clusterLabels):
     df = import_labels(filePath)
-    labels = df.loc[df['labels'] == clusterLabel, 'name'].to_list()
+    labels = df.loc[df['labels'].isin(clusterLabels), 'name'].to_list()
     return labels
 
 
@@ -58,10 +58,10 @@ def outlier_removal_wrapper(df):
     return df
 
 
-def data_preparation_wrapper(dataFilePath, password, labelsFilePath, clusterLabel, maxProfileCount):
+def data_preparation_wrapper(dataFilePath, password, labelsFilePath, clusterLabels, maxProfileCount):
     df = import_data(dataFilePath, password)
     df = keep_only_full_weeks(df)
-    labels = get_labels_for_cluster(labelsFilePath, clusterLabel)
+    labels = get_labels_for_cluster(labelsFilePath, clusterLabels)
     df_train = create_training_data(df, labels, maxProfileCount)
     df_train = outlier_removal_wrapper(df_train)
     return df_train
@@ -74,6 +74,12 @@ def get_categorical_columns(df):
     df_result[df_result.columns] = df[df_result.columns].astype('category')
     df_result.reset_index(drop = True, inplace = True)
     return df_result
+
+
+def save_profile_IDs(df, outputPath):
+    profiles = [col for col in df.columns if col.isdigit()]
+    with open(outputPath / 'used_profiles.csv', 'w') as file:
+        file.write('\n'.join(profiles))
 
 
 def df_to_arr(df):
@@ -89,29 +95,41 @@ def min_max_scaler(arr, featureRange = FEATURE_RANGE):
     return arr_scaled, valMin, valMax
 
 
-def reshape_arr(arr):
-    arr = np.split(arr.T, arr.shape[0]/24, axis = 1)
-    arr = np.stack(arr, axis = 2)
-    arr = np.split(arr, arr.shape[2]/7, axis = 2)
-    arr = np.stack(arr, axis = 3)
+def reshape_arr(arr, dim):
+    if int(dim) == 2:
+        arr = np.split(arr.T, arr.shape[0]/168, axis = 1)
+        arr = np.stack(arr, axis = 2)
+        arr = np.expand_dims(arr, axis = 1)
+    elif int(dim) == 3:
+        arr = np.split(arr.T, arr.shape[0]/24, axis = 1)
+        arr = np.stack(arr, axis = 2)
+        arr = np.split(arr, arr.shape[2]/7, axis = 2)
+        arr = np.stack(arr, axis = 3)
+    else:
+        raise ValueError(f'{dim} is not a valid dimension {{2, 3\}}!')
     return arr
 
 
-def gan_input_wrapper(df_train, outputPath):
+def gan_input_wrapper(df_train, dimData, outputPath):
     X_train = df_to_arr(df_train)
     X_trainProcd = X_train.copy()
-    X_trainProcd = reshape_arr(X_trainProcd)
+    X_trainProcd = reshape_arr(X_trainProcd, dimData)
     X_trainProcd, valMin, valMax = min_max_scaler(X_trainProcd) #scale data
     minMax = np.array([valMin, valMax])
     np.save(file = outputPath / 'min_max.npy', arr = minMax)
     return X_trainProcd, X_train, minMax
 
 
-def revert_reshape_arr(arr):
-    arr = np.split(arr, arr.shape[3], axis = 3)
-    arr = np.concatenate(arr, axis = 2).squeeze()
-    arr = np.split(arr, arr.shape[2], axis = 2)
-    arr = np.concatenate(arr, axis = 1).squeeze().T
+def revert_reshape_arr(arr, dim):
+    if int(dim) == 2:
+        arr = np.squeeze(arr, axis = 1)
+        arr = np.split(arr, arr.shape[2], axis = 2)
+        arr = np.concatenate(arr, axis = 1).squeeze().T
+    elif int(dim) == 3:
+        arr = np.split(arr, arr.shape[3], axis = 3)
+        arr = np.concatenate(arr, axis = 2).squeeze()
+        arr = np.split(arr, arr.shape[2], axis = 2)
+        arr = np.concatenate(arr, axis = 1).squeeze().T
     return arr
 
 
