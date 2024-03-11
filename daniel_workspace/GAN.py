@@ -52,6 +52,8 @@ class GAN(nn.Module):
             dimNoise,
             outputPath,
             modelSaveFreq,
+            dimData,
+            trackProgress,
             wandb
         ):
         super().__init__()
@@ -70,6 +72,8 @@ class GAN(nn.Module):
         self.dimNoise = dimNoise
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
+        self.dimData = dimData
+        self.trackProgress = trackProgress
         self.wandb = wandb
 
         self.dataLoader = \
@@ -80,7 +84,8 @@ class GAN(nn.Module):
         self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = self.betas)
         self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = self.betas)
 
-        self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'])
+        self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator', 'stop criterion'])
+        self.epochSamples = []
         self.modelPath = self.outputPath / 'models'
         os.makedirs(self.modelPath)
         self.plotPath = self.outputPath / 'plots'
@@ -138,19 +143,22 @@ class GAN(nn.Module):
                 lossDisFake.backward()
                 self.optimDis.step()
 
-                # Train generator
-                self.Gen.zero_grad()
-                yFakeNew = self.Dis(xFake)
-                lossGen = self.lossFct(yFakeNew, labelsReal)
-                lossGen.backward()
-                self.optimGen.step()
+                # Train
+                for idx in range(5):
+                    self.Gen.zero_grad()
+                    xFake = self.Gen(noise)
+                    yFakeNew = self.Dis(xFake)
+                    lossGen = self.lossFct(yFakeNew, labelsReal).clone()
+                    lossGen.backward(retain_graph = True if idx < 4 else False)
+                    self.optimGen.step()
 
                 total_loss_Gen += lossGen.cpu().item()
                 total_loss_DisFake += lossDisFake.cpu().item()
                 total_loss_DisReal += lossDisReal.cpu().item()
 
                 # Log progress
-                self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen)
+                stopCriterion = 2*lossGen.cpu().item() - lossDisReal.cpu().item() - lossDisFake.cpu().item()
+                self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen, stopCriterion)
 
             self.wandb.log({
                 'lossGen': total_loss_Gen / len(self.dataLoader),
@@ -161,6 +169,16 @@ class GAN(nn.Module):
             # Save model state
             if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
                 self.save_model_state(epoch)
+            
+            # Stop training early
+            stopTresh = 1
+            if epoch > 100 and abs(stopCriterion) > stopTresh:
+                self.save_model_state(epoch)
+                break
+
+            # Track progress (save generated samples)
+            if self.trackProgress:
+                self.epochSamples.append(self.generate_data())
         
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
@@ -168,8 +186,8 @@ class GAN(nn.Module):
         # Save losses in CSV file
         self.df_loss.to_csv(self.outputPath / 'losses.csv', index = False)
 
-    def logger(self, epoch, batchIdx, lossDisReal, lossDisFake, lossGen):
-        self.df_loss.loc[len(self.df_loss)] = epoch, batchIdx, lossDisReal.cpu().item(), lossDisFake.cpu().item(), lossGen.cpu().item()
+    def logger(self, epoch, batchIdx, lossDisReal, lossDisFake, lossGen, stopCriterion):
+        self.df_loss.loc[len(self.df_loss)] = epoch, batchIdx, lossDisReal.cpu().item(), lossDisFake.cpu().item(), lossGen.cpu().item(), stopCriterion
     
     def save_model_state(self, epoch):
         torch.save({
@@ -179,6 +197,16 @@ class GAN(nn.Module):
             'optim_gen_state_dict': self.optimGen.state_dict(),
             'optim_dis_state_dict': self.optimDis.state_dict()
         }, self.modelPath / f'epoch_{epoch + 1}.pt')
+
+    def generate_data(self, invertNorm = True):
+        minMax = np.load(self.outputPath / 'min_max.npy')
+        noise = randn(self.dataset.shape[0], self.dimNoise, 1, 1, device = self.device)    #! generalization needed
+        xSynth = self.Gen(noise)
+        xSynth = xSynth.cpu().detach().numpy()
+        xSynth = revert_reshape_arr(xSynth, self.dimData)
+        if invertNorm:
+            xSynth = invert_min_max_scaler(xSynth, minMax)
+        return xSynth
 
 
 def generate_data_from_saved_model(

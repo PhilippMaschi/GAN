@@ -4,6 +4,10 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')   #for seaborn
 import os
+import io
+import numpy as np
+from PIL import Image
+import imageio
 
 
 def plot_losses(df, plotPath):
@@ -29,7 +33,7 @@ def compare_distributions(X_real, X_synth, plotPath):
     plt.close();
 
 
-def plot_seasonal_daily_means(X_real, X_synth, df_hull, plotPath):
+def plot_seasonal_daily_means(X_real, X_synth, df_hull, plotPath, epoch = None):
     meansReal, stdsReal = get_seasonal_hourly_means_and_stds(X_real, df_hull)
     meansSynth, stdsSynth = get_seasonal_hourly_means_and_stds(X_synth, df_hull)
     seasons = ['Spring', 'Summer', 'Fall', 'Winter']    #alternative: `df_hull['meteorological season'].cat.categories`
@@ -51,11 +55,14 @@ def plot_seasonal_daily_means(X_real, X_synth, df_hull, plotPath):
         axes[idx].set_xlabel('Hour of the day')
         axes[idx].set_ylabel('Mean value')
         axes[idx].set_xlim(hours.start, hours.stop - 1)
-        axes[idx].legend()
-    plt.suptitle('Mean day for each season')
+        if idx == 0:
+            axes[idx].legend()
+    plt.suptitle(epoch if epoch else 'Mean day for each season')
     plt.tight_layout()
-    plt.savefig(plotPath / 'seasons_mean_day.png')
-    plt.close();
+    if not epoch:
+        plt.savefig(plotPath / 'seasons_mean_day.png');
+    else:
+        return fig;
 
 
 def get_seasonal_hourly_means_and_stds(X, df_hull):
@@ -150,3 +157,15 @@ def plot_wrapper(X_real, X_synth, df_hull, runPath):
     plot_examples(X_real, plotPath, Xtype = 'real')
     plot_examples(X_synth, plotPath, Xtype = 'synth')
     plot_average_week(X_real, X_synth, df_hull, plotPath)
+
+
+def visualize_progress(model, X_train, df_hull, outputPath):
+    images = []
+    for idx, item in enumerate(model.epochSamples):
+        fig = plot_seasonal_daily_means(X_train, item, df_hull, outputPath, epoch = idx + 1)
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format = 'png')
+        img = np.array(Image.open(buffer))
+        buffer.close()
+        images.append(img)
+    imageio.mimsave(outputPath / 'progress.gif', images, fps = 10)

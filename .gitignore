@@ -15,6 +15,7 @@ clustering/
 *.gzip
 *.jpg
 *.png
+*.gif
 *.html
 *.pt
 *.ipynb

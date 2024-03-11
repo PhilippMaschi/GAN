@@ -8,7 +8,7 @@ import wandb
 from preproc import data_preparation_wrapper, get_categorical_columns, save_profile_IDs, gan_input_wrapper
 from GAN import GAN, generate_data_from_saved_model
 from config import config_wrapper
-from plots import plot_wrapper
+from plots import plot_wrapper, visualize_progress
 
 ####################################################################################################
 
@@ -17,19 +17,20 @@ print(inputPath)
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
-clusterLabels = [0]
+clusterLabels = [0, 1, 2]
 maxProfileCount = None
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
 dimData = 3
-modelSaveFreq = 200
+modelSaveFreq = 100
+trackProgress = True
 
 ####################################################################################################
 
 batchSize = 15
 lossFct = 'BCE'
-lrGen = 1e-4/3
-lrDis = 1e-4/2
+lrGen = 1e-4/3.25
+lrDis = 1e-4/2.25
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 epochCount = 300
@@ -47,27 +48,27 @@ modelGen = nn.Sequential(   #https://towardsdatascience.com/conv2d-to-finally-un
     nn.ConvTranspose2d(in_channels = dimNoise, out_channels = 8*dimHidden, kernel_size = 3, stride = 1, padding = 0, bias = False),
     nn.BatchNorm2d(num_features = 8*dimHidden),
     nn.ReLU(inplace = True),
-    nn.Dropout2d(p = 0.1),
+    nn.Dropout2d(p = 0.075),
     # 2nd layer
     nn.ConvTranspose2d(in_channels = 8*dimHidden, out_channels = 4*dimHidden, kernel_size = 3, stride = 2, padding = 0, bias = False),
     nn.BatchNorm2d(num_features = 4*dimHidden),
     nn.ReLU(inplace = True),
-    nn.Dropout2d(p = 0.1),
+    nn.Dropout2d(p = 0.075),
     # 3rd layer
     nn.ConvTranspose2d(in_channels = 4*dimHidden, out_channels = 2*dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 1), bias = False),
     nn.BatchNorm2d(num_features = 2*dimHidden),
     nn.ReLU(inplace = True),
-    nn.Dropout2d(p = 0.1),
+    nn.Dropout2d(p = 0.075),
     # 4th layer
     nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = 2*dimHidden, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
     nn.BatchNorm2d(num_features = 2*dimHidden),
     nn.ReLU(inplace = True),
-    nn.Dropout2d(p = 0.1),
+    nn.Dropout2d(p = 0.075),
     # 5th layer
     nn.ConvTranspose2d(in_channels = 2*dimHidden, out_channels = dimHidden, kernel_size = 3, stride = (1, 1), padding = (1, 1), bias = False),
     nn.BatchNorm2d(num_features = dimHidden),
     nn.ReLU(inplace = True),
-    nn.Dropout2d(p = 0.1),
+    nn.Dropout2d(p = 0.075),
     # Output layer
     nn.ConvTranspose2d(in_channels = dimHidden, out_channels = channelCount, kernel_size = 3, stride = (1, 2), padding = (1, 0), bias = False),
     nn.Tanh()
@@ -149,6 +150,8 @@ if __name__ == '__main__':
         dimNoise = dimNoise,
         outputPath = outputPath,
         modelSaveFreq = modelSaveFreq,
+        dimData = dimData,
+        trackProgress = trackProgress,
         wandb = wandb
     )
     config_wrapper(model, outputPath)
@@ -165,3 +168,5 @@ if __name__ == '__main__':
     )
 
     plot_wrapper(X_train, X_synth, df_hull, outputPath)
+    if trackProgress:
+        visualize_progress(model, X_train, df_hull, outputPath)
