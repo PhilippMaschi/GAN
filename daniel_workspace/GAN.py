@@ -53,6 +53,7 @@ class GAN(nn.Module):
             outputPath,
             modelSaveFreq,
             dimData,
+            stopThresh,
             trackProgress,
             wandb
         ):
@@ -73,6 +74,7 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
         self.dimData = dimData
+        self.stopThresh = stopThresh
         self.trackProgress = trackProgress
         self.wandb = wandb
 
@@ -171,8 +173,7 @@ class GAN(nn.Module):
                 self.save_model_state(epoch)
             
             # Stop training early
-            stopTresh = 1
-            if epoch > 100 and abs(stopCriterion) > stopTresh:
+            if epoch > 100 and abs(stopCriterion) > self.stopTresh:
                 self.save_model_state(epoch)
                 break
 

@@ -17,12 +17,13 @@ print(inputPath)
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
-clusterLabels = [0, 1, 2]
+clusterLabels = [4]#list(range(0, 15))
 maxProfileCount = None
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
 dimData = 3
 modelSaveFreq = 100
+stopThresh = 5
 trackProgress = True
 
 ####################################################################################################
@@ -151,6 +152,7 @@ if __name__ == '__main__':
         outputPath = outputPath,
         modelSaveFreq = modelSaveFreq,
         dimData = dimData,
+        stopThresh = stopThresh,
         trackProgress = trackProgress,
         wandb = wandb
     )

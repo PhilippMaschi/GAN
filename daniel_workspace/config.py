@@ -43,7 +43,7 @@ def create_config(model):
              f'Device\n{model.device.type}\n\n' \
              f'Epoch count\n{model.epochCount}\n\n' \
              f'Label (real)\n{model.labelReal}\n\n' \
-             f'Label (fake)\n{model.labelReal}\n\n' \
+             f'Label (fake)\n{model.labelFake}\n\n' \
              f'Noise dimension\n{model.dimNoise}\n\n'
     return config
 
