@@ -78,6 +78,9 @@ class GAN(nn.Module):
         self.trackProgress = trackProgress
         self.wandb = wandb
 
+        self.pNew = 0.04
+        self.breakPoint = None
+
         self.dataLoader = \
             DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
         self.Gen = Generator(model = self.modelGen).to(device = self.device)
@@ -122,6 +125,7 @@ class GAN(nn.Module):
         return lossFct
 
     def train(self):
+        A = 0
         for epoch in tqdm(range(self.epochCount)):
             total_loss_Gen, total_loss_DisFake, total_loss_DisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -173,14 +177,25 @@ class GAN(nn.Module):
                 self.save_model_state(epoch)
             
             # Stop training early
-            if epoch > 100 and abs(stopCriterion) > self.stopTresh:
-                self.save_model_state(epoch)
-                break
+            if epoch > 100 and abs(stopCriterion) > self.stopThresh and A == 0:#and self.Gen.model[3].p != self.pNew:
+                #self.save_model_state(epoch)
+                #break
+                self.breakPoint = epoch
+                #self.Gen.model[3].p = self.pNew
+                #self.Gen.model[7].p = self.pNew
+                #self.Gen.model[11].p = self.pNew
+                #self.Gen.model[15].p = self.pNew
+                #self.Gen.model[19].p = self.pNew
+                self.optimGen.param_groups[0]['lr']/=2
+                self.optimDis.param_groups[0]['lr']/=2
+                A = 1
 
             # Track progress (save generated samples)
             if self.trackProgress:
                 self.epochSamples.append(self.generate_data())
         
+        print(self.breakPoint)
+
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
 

@@ -22,8 +22,8 @@ maxProfileCount = None
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
 dimData = 3
-modelSaveFreq = 100
-stopThresh = 5
+modelSaveFreq = 300
+stopThresh = 3.5
 trackProgress = True
 
 ####################################################################################################
@@ -34,7 +34,7 @@ lrGen = 1e-4/3.25
 lrDis = 1e-4/2.25
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-epochCount = 300
+epochCount = 1000
 labelReal = 0
 labelFake = 1
 dimNoise = 90
@@ -117,7 +117,7 @@ wandbHyperparams = {
 if __name__ == '__main__':
     wandb.init( #start a new wandb run to track this script
         project = 'GAN',    #set the wandb project where this run will be logged
-        #mode = 'offline',
+        mode = 'offline',
         config = wandbHyperparams    #track hyperparameters and run metadata
     )
     modelName = wandb.run.name
