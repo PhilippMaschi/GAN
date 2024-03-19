@@ -181,11 +181,11 @@ class GAN(nn.Module):
                 #self.save_model_state(epoch)
                 #break
                 self.breakPoint = epoch
-                #self.Gen.model[3].p = self.pNew
-                #self.Gen.model[7].p = self.pNew
-                #self.Gen.model[11].p = self.pNew
-                #self.Gen.model[15].p = self.pNew
-                #self.Gen.model[19].p = self.pNew
+                self.Gen.model[3].p = self.pNew
+                self.Gen.model[7].p = self.pNew
+                self.Gen.model[11].p = self.pNew
+                self.Gen.model[15].p = self.pNew
+                self.Gen.model[19].p = self.pNew
                 self.optimGen.param_groups[0]['lr']/=2
                 self.optimDis.param_groups[0]['lr']/=2
                 A = 1

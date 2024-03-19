@@ -17,13 +17,13 @@ print(inputPath)
 inputFilename = 'all_profiles.crypt'
 inputPassword = 'Ene123Elec#4'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
-clusterLabels = [4]#list(range(0, 15))
+clusterLabels = [0]#list(range(0, 15))
 maxProfileCount = None
 
 runName = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]
 dimData = 3
-modelSaveFreq = 300
-stopThresh = 3.5
+modelSaveFreq = 150
+stopThresh = 0.5
 trackProgress = True
 
 ####################################################################################################
@@ -34,7 +34,7 @@ lrGen = 1e-4/3.25
 lrDis = 1e-4/2.25
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
-epochCount = 1000
+epochCount = 450
 labelReal = 0
 labelFake = 1
 dimNoise = 90
