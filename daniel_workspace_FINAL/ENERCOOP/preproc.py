@@ -58,30 +58,6 @@ def outlier_removal_wrapper(df):
     return df
 
 
-def data_preparation_wrapper(dataFilePath, password, labelsFilePath, clusterLabels, maxProfileCount):
-    df = import_data(dataFilePath, password)
-    df = keep_only_full_weeks(df)
-    labels = get_labels_for_cluster(labelsFilePath, clusterLabels)
-    df_train = create_training_data(df, labels, maxProfileCount)
-    df_train = outlier_removal_wrapper(df_train)
-    return df_train
-
-
-def get_categorical_columns(df):
-    categoricalCols = [col for col in df.columns if not col.isdigit()]
-    df_result = df[categoricalCols].copy()
-    df_result.drop(columns = 'timestamp', inplace = True)
-    df_result[df_result.columns] = df[df_result.columns].astype('category')
-    df_result.reset_index(drop = True, inplace = True)
-    return df_result
-
-
-def save_profile_IDs(df, outputPath):
-    profiles = [col for col in df.columns if col.isdigit()]
-    with open(outputPath / 'used_profiles.csv', 'w') as file:
-        file.write('\n'.join(profiles))
-
-
 def df_to_arr(df):
     numericCols = [col for col in df.columns if col.isdigit()]
     df = df[numericCols]
@@ -89,13 +65,7 @@ def df_to_arr(df):
     return arr
 
 
-def min_max_scaler(arr, featureRange = FEATURE_RANGE):
-    valMin, valMax = np.min(arr), np.max(arr)
-    arr_scaled = (arr - valMin)/(valMax - valMin)*(featureRange[1] - featureRange[0]) + featureRange[0]
-    return arr_scaled, valMin, valMax
-
-
-def reshape_arr(arr, dim):
+def reshape_arr(arr, dim = 3):
     if int(dim) == 2:
         arr = np.split(arr.T, arr.shape[0]/168, axis = 1)
         arr = np.stack(arr, axis = 2)
@@ -110,17 +80,7 @@ def reshape_arr(arr, dim):
     return arr
 
 
-def gan_input_wrapper(df_train, dimData, outputPath):
-    X_train = df_to_arr(df_train)
-    X_trainProcd = X_train.copy()
-    X_trainProcd = reshape_arr(X_trainProcd, dimData)
-    X_trainProcd, valMin, valMax = min_max_scaler(X_trainProcd) #scale data
-    minMax = np.array([valMin, valMax])
-    np.save(file = outputPath / 'min_max.npy', arr = minMax)
-    return X_trainProcd, X_train, minMax
-
-
-def revert_reshape_arr(arr, dim):
+def revert_reshape_arr(arr, dim = 3):
     if int(dim) == 2:
         arr = np.squeeze(arr, axis = 1)
         arr = np.split(arr, arr.shape[2], axis = 2)
@@ -133,12 +93,12 @@ def revert_reshape_arr(arr, dim):
     return arr
 
 
-def invert_min_max_scaler(arr_scaled, minMax, featureRange = FEATURE_RANGE):
-    valMin, valMax = minMax[0], minMax[1]
-    arr = (arr_scaled - featureRange[0])*(valMax - valMin)/(featureRange[1] - featureRange[0]) + valMin #!rounding problem?
-    return arr
-
-
-def arr_to_df(arr):
-    df = pd.DataFrame(arr.T.reshape(-1, 100))
-    return df
+def data_preparation_wrapper(dataFilePath, password, labelsFilePath, clusterLabels, maxProfileCount):
+    df = import_data(dataFilePath, password)
+    df = keep_only_full_weeks(df)
+    labels = get_labels_for_cluster(labelsFilePath, clusterLabels)
+    df_train = create_training_data(df, labels, maxProfileCount)
+    df_train = outlier_removal_wrapper(df_train)
+    X_train = df_to_arr(df)
+    X_trainResh = reshape_arr(X_train)
+    return X_trainResh, X_train

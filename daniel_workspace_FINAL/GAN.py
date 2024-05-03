@@ -7,7 +7,6 @@ import torch
 import re
 import numpy as np
 
-from preproc import revert_reshape_arr, invert_min_max_scaler, arr_to_df
 from plots import plot_losses
 
 
@@ -53,7 +52,9 @@ class GAN(nn.Module):
             outputPath,
             modelSaveFreq,
             dimData,
-            stopThresh,
+            loopCountGen,
+            thresh,
+            threshEpochMin,
             trackProgress,
             wandb
         ):
@@ -74,22 +75,25 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
         self.dimData = dimData
-        self.stopThresh = stopThresh
+        self.loopCountGen = loopCountGen
+        self.thresh = thresh
+        self.threshEpochMin = threshEpochMin
         self.trackProgress = trackProgress
         self.wandb = wandb
 
-        self.pNew = 0.04
-        self.breakPoint = None
+        self.pDropoutNew = 0.04 #! should be an input parameter?
+        self.changePoint = None
 
         self.dataLoader = \
-            DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #NOTE: num_workers?
+            DataLoader(dataset = self.dataset, batch_size = self.batchSize, shuffle = True) #! num_workers?
         self.Gen = Generator(model = self.modelGen).to(device = self.device)
         self.Dis = Discriminator(model = self.modelDis).to(device = self.device)
         self.lossFct = self.getLossFct()
         self.optimGen = optim.Adam(params = self.Gen.parameters(), lr = self.lrGen, betas = self.betas)
         self.optimDis = optim.Adam(params = self.Dis.parameters(), lr = self.lrDis, betas = self.betas)
 
-        self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator', 'stop criterion'])
+        self.df_loss = pd.DataFrame(columns = ['epoch', 'batch_index', 'loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator', 'change_criterion'])
+        self.paramChange = 0
         self.epochSamples = []
         self.modelPath = self.outputPath / 'models'
         os.makedirs(self.modelPath)
@@ -104,28 +108,13 @@ class GAN(nn.Module):
                 lossFct = nn.MSELoss()
             case 'CrossEntropy':
                 lossFct = nn.CrossEntropyLoss()
-            case 'CTC':
-                lossFct = nn.CTCLoss()
-            case 'NLL':
-                lossFct = nn.NLLLoss()
-            case 'PoissonNLL':
-                lossFct = nn.PoissonNLLLoss()
-            case 'nn.GaussianNLL':
-                lossFct = nn.GaussianNLLLoss()
-            case 'KLDiv':
-                lossFct = nn.KLDivLoss()
             case 'BCE':
                 lossFct = nn.BCELoss()
             case 'BCEWithLogits':
                 lossFct = nn.BCEWithLogitsLoss()
-            case 'MarginRanking':
-                lossFct = nn.MarginRankingLoss()
-            case 'HingeEmbedding':
-                lossFct = nn.HingeEmbeddingLoss()
         return lossFct
 
     def train(self):
-        A = 0
         for epoch in tqdm(range(self.epochCount)):
             total_loss_Gen, total_loss_DisFake, total_loss_DisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -149,13 +138,13 @@ class GAN(nn.Module):
                 lossDisFake.backward()
                 self.optimDis.step()
 
-                # Train
-                for idx in range(5):
+                # Train generator
+                for idx in range(self.loopCountGen):
                     self.Gen.zero_grad()
                     xFake = self.Gen(noise)
                     yFakeNew = self.Dis(xFake)
                     lossGen = self.lossFct(yFakeNew, labelsReal).clone()
-                    lossGen.backward(retain_graph = True if idx < 4 else False)
+                    lossGen.backward(retain_graph = True if idx < self.loopCountGen - 1 else False)
                     self.optimGen.step()
 
                 total_loss_Gen += lossGen.cpu().item()
@@ -163,39 +152,39 @@ class GAN(nn.Module):
                 total_loss_DisReal += lossDisReal.cpu().item()
 
                 # Log progress
-                stopCriterion = 2*lossGen.cpu().item() - lossDisReal.cpu().item() - lossDisFake.cpu().item()
-                self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen, stopCriterion)
+                threshCriterion = 2*lossGen.cpu().item() - lossDisReal.cpu().item() - lossDisFake.cpu().item()
+                self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen, threshCriterion)
 
+            # Log progress with wandb
             self.wandb.log({
-                'lossGen': total_loss_Gen / len(self.dataLoader),
                 'lossDisFake': total_loss_DisFake / len(self.dataLoader),
                 'lossDisReal': total_loss_DisReal / len(self.dataLoader),
+                'lossGen': total_loss_Gen / len(self.dataLoader)
             })
 
             # Save model state
             if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
                 self.save_model_state(epoch)
             
-            # Stop training early
-            if self.stopThresh:
-                if epoch > 100 and abs(stopCriterion) > self.stopThresh and A == 0:#and self.Gen.model[3].p != self.pNew:
+            # Change parameters during training (optional) #! generalization needed
+            if self.thresh:
+                if epoch > self.threshEpochMin and abs(threshCriterion) > self.thresh and self.paramChange == 0:
                     #self.save_model_state(epoch)
-                    #break
-                    self.breakPoint = epoch
-                    self.Gen.model[3].p = self.pNew
-                    self.Gen.model[7].p = self.pNew
-                    self.Gen.model[11].p = self.pNew
-                    self.Gen.model[15].p = self.pNew
-                    self.Gen.model[19].p = self.pNew
-                    self.optimGen.param_groups[0]['lr']/=2
-                    self.optimDis.param_groups[0]['lr']/=2
-                    A = 1
+                    self.changePoint = epoch
+                    self.Gen.model[3].p = self.pDropoutNew
+                    self.Gen.model[7].p = self.pDropoutNew
+                    self.Gen.model[11].p = self.pDropoutNew
+                    self.Gen.model[15].p = self.pDropoutNew
+                    self.Gen.model[19].p = self.pDropoutNew
+                    self.optimGen.param_groups[0]['lr']/= 2 #! generalization needed
+                    self.optimDis.param_groups[0]['lr']/= 2
+                    self.paramChange = 1
 
             # Track progress (save generated samples)
             if self.trackProgress:
                 self.epochSamples.append(self.generate_data())
         
-        print(self.breakPoint)
+        print(self.changePoint)
 
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
@@ -220,10 +209,6 @@ class GAN(nn.Module):
         noise = randn(self.dataset.shape[0], self.dimNoise, 1, 1, device = self.device)    #! generalization needed
         xSynth = self.Gen(noise)
         xSynth = xSynth.cpu().detach().numpy()
-        if not self.dimData: #! generalization needed (code currently used for VITO data)
-            xSynth = arr_to_df(xSynth)
-        else:
-            xSynth = revert_reshape_arr(xSynth, self.dimData)
         if invertNorm:
             xSynth = invert_min_max_scaler(xSynth, minMax)
         return xSynth
@@ -235,7 +220,6 @@ def generate_data_from_saved_model(
         device,
         profileCount,
         dimNoise,
-        dimData,
         invertNorm = True
     ):
     file_dict = {
@@ -251,10 +235,18 @@ def generate_data_from_saved_model(
     noise = randn(profileCount, dimNoise, 1, 1, device = device)    #! generalization needed
     xSynth = Gen(noise)
     xSynth = xSynth.cpu().detach().numpy()
-    if not dimData: #! generalization needed (code currently used for VITO data)
-        xSynth = arr_to_df(xSynth)
-    else:
-        xSynth = revert_reshape_arr(xSynth, dimData)
     if invertNorm:
         xSynth = invert_min_max_scaler(xSynth, minMax)
     return xSynth
+
+
+def min_max_scaler(arr, featureRange = FEATURE_RANGE):
+    valMin, valMax = np.min(arr), np.max(arr)
+    arr_scaled = (arr - valMin)/(valMax - valMin)*(featureRange[1] - featureRange[0]) + featureRange[0]
+    return arr_scaled, valMin, valMax
+
+
+def invert_min_max_scaler(arr_scaled, minMax, featureRange = FEATURE_RANGE):
+    valMin, valMax = minMax[0], minMax[1]
+    arr = (arr_scaled - featureRange[0])*(valMax - valMin)/(featureRange[1] - featureRange[0]) + valMin #!rounding problem?
+    return arr
