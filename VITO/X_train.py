@@ -4,7 +4,7 @@ from VITO.preproc import data_preparation_wrapper
 
 ####################################################################################################
 
-path = Path().absolute().parent / 'GAN_data' / 'Time-series end use consumer profiles'
+path = Path().absolute() / 'data' / 'VITO' / 'Time-series end use consumer profiles'
 folder = '100 Renovated Building with PV and HP'
 #filename = 'electricityConsumptionrPVHPRen.csv'
 filename = 'domesticHotWaterConsumptionPVHPRen.csv'
