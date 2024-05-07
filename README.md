@@ -34,6 +34,7 @@ conda create --name myenv python=3.11
 4) Install required Python packages:
 
 ```
+conda install pip
 pip install -r requirements.txt
 ```
 
@@ -55,14 +56,41 @@ from ENERCOOP.params import params
 # from VITO.params import params
 ```
 
-To use other data, than the two datasets provided the code needs to be adapted accordingly.
+To use other data, than the two datasets provided the code needs to be adapted accordingly and is explained in the following.
 
 ## Usage
+By running the start.py script the model will be trained on the data you provided based on the hyperparameters defined in the respective params.py file in each folder for the data (in this case the VITO or ENERCOOP folder).
 
-Here is a quick guide on how to use the MyTool for your data analysis:
+#### Training parameters
 
-Either describe how to use the tool if it is simple enough or provide a notebook with example code that
-can be directly used.
+Hyperparameters include the following:
+
+- trackProgress: if set to true, the training progress will be tracked and can be visualized. This slows down the training.
+- batchSize: the batchsize which is used for training. A high batchsize will speed up the training and generalize the learned data, a small batchsize will result in more defined profiles but can lead to overfitting.
+- lossFct: We use the binary cross entropy loss function (BCE). If another loss function is choosen, additional adaptions to the code might be needed.
+- lrGen: define the learning rate of the Generator. 
+- lrDis: define the learning rate of the Discriminator.
+- betas: We use the AdamOptimizor in both the Generator and Discriminator. The beta values define the moving averages.
+- device: devine if you want to use GPU or CPU for training. For automatic detection of GPU leave the standard value which is: ```torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')```
+- epochCount: Amount of epochs for training. With epochs too low the GAN can not learn the real distribution, with too many training epochs the Generator tends to outperform the Discriminator leading to wore results as well. For the provided data we found 400 epochs to be a sufficient good value.
+- modelSaveFreq = 500
+- loopCountGen = 5
+- thresh = None
+- threshEpochMin = 100
+
+#### using wandb library
+
+to track the training process the [wandb](https://wandb.ai/) library can be used. To do so, follow the set up guide of wandb. In the start.py file you can initalize your wandb run and devine the name of your project and if you want to see the training process online.
+
+```
+wandb.init( 
+        project = 'GAN',    #set the wandb project where this run will be logged
+        mode = 'offline',
+        config = wandbHyperparams    #track hyperparameters and run metadata
+    )
+```
+
+
 
 ## Licensing
 

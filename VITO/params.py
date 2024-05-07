@@ -3,7 +3,6 @@ from torch import nn
 
 ####################################################################################################
 
-dimData = None
 trackProgress = False
 batchSize = 12
 lossFct = 'BCE'
@@ -12,9 +11,6 @@ lrDis = 1e-5
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 epochCount = 400
-#epochCount = 5
-labelReal = 1
-labelFake = 0
 modelSaveFreq = 500
 loopCountGen = 5
 thresh = None

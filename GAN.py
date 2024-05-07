@@ -46,12 +46,9 @@ class GAN(nn.Module):
             betas,
             device,
             epochCount,
-            labelReal,
-            labelFake,
             dimNoise,
             outputPath,
             modelSaveFreq,
-            dimData,
             loopCountGen,
             thresh,
             threshEpochMin,
@@ -69,12 +66,11 @@ class GAN(nn.Module):
         self.betas = betas
         self.device = device
         self.epochCount = epochCount
-        self.labelReal = labelReal
-        self.labelFake = labelFake
+        self.labelReal = 1
+        self.labelFake = 0
         self.dimNoise = dimNoise
         self.outputPath = outputPath
         self.modelSaveFreq = modelSaveFreq
-        self.dimData = dimData
         self.loopCountGen = loopCountGen
         self.thresh = thresh
         self.threshEpochMin = threshEpochMin

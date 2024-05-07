@@ -5,7 +5,6 @@ import numpy as np
 
 ####################################################################################################
 
-dimData = None
 trackProgress = False
 batchSize = 15
 lossFct = 'BCE'
@@ -14,9 +13,6 @@ lrDis = 1e-4/2.25
 betas = (0.5, 0.999)
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 epochCount = 450
-#epochCount = 5
-labelReal = 1
-labelFake = 0
 modelSaveFreq = 500
 loopCountGen = 2
 thresh = None
