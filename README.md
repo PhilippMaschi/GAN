@@ -35,6 +35,8 @@ conda create --name myenv python=3.11
 
 ```
 conda install pip
+```
+```
 pip install -r requirements.txt
 ```
 
@@ -58,8 +60,95 @@ from ENERCOOP.params import params
 
 To use other data, than the two datasets provided the code needs to be adapted accordingly and is explained in the following.
 
+## Description of the model
+The Generator consists of a number of [ConvTranspose2d](https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html) layers. The exact structure can be altered in the respective params.py file. Here we give an example from the VITO params file:
+
+```
+modelGen = nn.Sequential(
+    # 1st layer 
+    nn.ConvTranspose2d(in_channels = dimNoise, 
+                        out_channels = 8*dimHidden, 
+                        kernel_size = (12, 46), 
+                        stride = (1, 1), 
+                        padding = (0, 0), 
+                        bias = False), 
+    nn.BatchNorm2d(num_features = 8*dimHidden),
+    nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.065),
+    # 2nd layer
+    nn.ConvTranspose2d(in_channels = 8*dimHidden, 
+                       out_channels = 4*dimHidden, 
+                       kernel_size = (3, 3), 
+                       stride = (2, 2), 
+                       padding = (1, 1), 
+                       bias = False),
+    nn.BatchNorm2d(num_features = 4*dimHidden),
+    nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.065),
+    # 3rd layer
+    nn.ConvTranspose2d(in_channels = 4*dimHidden, 
+                       out_channels = 2*dimHidden, 
+                       kernel_size = (3, 3), 
+                       stride = (2, 2), 
+                       padding = (1, 1), 
+                       bias = False),
+    nn.BatchNorm2d(num_features = 2*dimHidden),
+    nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.065),
+    # 4th layer
+    nn.ConvTranspose2d(in_channels = 2*dimHidden, 
+                       out_channels = dimHidden, 
+                       kernel_size = (3, 3), 
+                       stride = (2, 2), 
+                       padding = (1, 1), 
+                       bias = False),
+    nn.BatchNorm2d(num_features = dimHidden),
+    nn.ReLU(inplace = True),
+    nn.Dropout2d(p = 0.065),
+    # Output layer
+    nn.ConvTranspose2d(in_channels = dimHidden, 
+                       out_channels = channelCount, 
+                       kernel_size = (10, 6), 
+                       stride = (1, 1), 
+                       padding = (1, 0), 
+                       bias = False),
+    nn.Tanh()
+)
+```
+The kernel size as well as the stride and the padding in this example are adjusted to transform the noise vector back into the original format of the real data. 
+The discriminator consists of [Conv2d](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) layers returning transforming the input data into a signle value throug the Sigmoid function at the end.
+
+```
+modelDis = nn.Sequential(
+    # 1st layer
+    nn.Conv2d(in_channels = channelCount, out_channels = dimHidden, kernel_size = (3, 3), stride = (1, 1), padding = (1, 0), bias = False),
+    nn.LeakyReLU(negative_slope = 0.2, inplace = True),
+    # 2nd layer
+    nn.Conv2d(in_channels = dimHidden, out_channels = 2*dimHidden, kernel_size = (3, 3), stride = (2, 2), padding = (1, 1), bias = False),
+    nn.BatchNorm2d(num_features = 2*dimHidden),
+    nn.LeakyReLU(negative_slope = 0.2, inplace = True),
+    # 3rd layer
+    nn.Conv2d(in_channels = 2*dimHidden, out_channels = 4*dimHidden, kernel_size = (3, 3), stride = (2, 2), padding = (1, 1), bias = False),
+    nn.BatchNorm2d(num_features = 4*dimHidden),
+    nn.LeakyReLU(negative_slope = 0.2, inplace = True),
+    # 4th layer
+    nn.Conv2d(in_channels = 4*dimHidden, out_channels = 8*dimHidden, kernel_size = (3, 3), stride = (2, 2), padding = (1, 1), bias = False),
+    nn.BatchNorm2d(num_features = 8*dimHidden),
+    nn.LeakyReLU(negative_slope = 0.2, inplace = True),
+    # Output layer
+    nn.Conv2d(in_channels = 8*dimHidden, out_channels = 1, kernel_size = (12, 46), stride = (1, 1), padding = (0, 0), bias = False),
+    nn.Sigmoid()
+)
+
+```
+
+When using data of a different shape than provided in the two examples, the parameters of both models have to be adapted or the data has to be reshaped in a way that it fits the already provided models.
+
 ## Usage
 By running the start.py script the model will be trained on the data you provided based on the hyperparameters defined in the respective params.py file in each folder for the data (in this case the VITO or ENERCOOP folder). When running the script a subfolder is created with the model name. If [wandb](#Using-wandb-library) is used a random name with the date of the start of this script is used, otherwise the foldername will be just the date. Within this folder the model will be saved as well as the result figures.
+
+### Preparing the input data
+Both folders (VITO and ENERCOOP) contain a preproc.py file in which the data for training is pre-processed. For the GAN to be able to learn from the time series data it has to be re-shaped. 
 
 ### Training parameters
 

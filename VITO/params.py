@@ -77,7 +77,6 @@ from VITO.preproc import revert_reshape_arr #should revert the changes made by `
 ####################################################################################################
 
 params = {
-    'dimData': dimData,
     'trackProgress': trackProgress,
     'batchSize': batchSize,
     'lossFct': lossFct,
@@ -86,8 +85,6 @@ params = {
     'betas': betas,
     'device': device,
     'epochCount': epochCount,
-    'labelReal': labelReal,
-    'labelFake': labelFake,
     'modelSaveFreq': modelSaveFreq,
     'loopCountGen': loopCountGen,
     'thresh': thresh,
