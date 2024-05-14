@@ -14,29 +14,30 @@ The recommended Python version for running this code is 3.11
 
 1) clone the repository to your local machine:
 
-```
+```sh
 git clone https://github.com/MODERATE-Project/YourToolName.git
 ```
 
 2) Navigate to the project directory:
 
-```
+```sh
 cd YourToolName
 ```
 
 3) create an enviroment:
 Conda command for creating a suitable environment (replace myenv with the desired enviroment name):
 
-```
+```sh
 conda create --name myenv python=3.11
 ```
 
 4) Install required Python packages:
 
-```
+```sh
 conda install pip
 ```
-```
+
+```sh
 pip install -r requirements.txt
 ```
 
@@ -44,13 +45,14 @@ pip install -r requirements.txt
 
 To run the code, run the start.py file.
 
-````
+````sh
 python start.py
 ````
+
 By default the model will use the data from the VITO folder to train the model on the profiles in this folder.
 To use the model on other data eg. the data in the Enercoop folder, uncomment the respective import statement in the start.py file and comment out the import from the VITO folder.
 
-```
+```py
 from ENERCOOP.X_train import X_trainResh, X_train
 from ENERCOOP.params import params
 
@@ -61,9 +63,10 @@ from ENERCOOP.params import params
 To use other data, than the two datasets provided the code needs to be adapted accordingly and is explained in the following.
 
 ## Description of the model
+
 The Generator consists of a number of [ConvTranspose2d](https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html) layers. The exact structure can be altered in the respective params.py file. Here we give an example from the VITO params file:
 
-```
+```py
 modelGen = nn.Sequential(
     # 1st layer 
     nn.ConvTranspose2d(in_channels = dimNoise, 
@@ -115,10 +118,11 @@ modelGen = nn.Sequential(
     nn.Tanh()
 )
 ```
+
 The kernel size as well as the stride and the padding in this example are adjusted to transform the noise vector back into the original format of the real data. 
 The discriminator consists of [Conv2d](https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html) layers returning transforming the input data into a signle value throug the Sigmoid function at the end.
 
-```
+```py
 modelDis = nn.Sequential(
     # 1st layer
     nn.Conv2d(in_channels = channelCount, out_channels = dimHidden, kernel_size = (3, 3), stride = (1, 1), padding = (1, 0), bias = False),
@@ -145,9 +149,11 @@ modelDis = nn.Sequential(
 When using data of a different shape than provided in the two examples, the parameters of both models have to be adapted or the data has to be reshaped in a way that it fits the already provided models.
 
 ## Usage
+
 By running the start.py script the model will be trained on the data you provided based on the hyperparameters defined in the respective params.py file in each folder for the data (in this case the VITO or ENERCOOP folder). When running the script a subfolder is created with the model name. If [wandb](#Using-wandb-library) is used a random name with the date of the start of this script is used, otherwise the foldername will be just the date. Within this folder the model will be saved as well as the result figures.
 
 ### Preparing the input data
+
 Both folders (VITO and ENERCOOP) contain a preproc.py file in which the data for training is pre-processed. For the GAN to be able to learn from the time series data it has to be re-shaped. 
 
 ### Training parameters
@@ -166,7 +172,7 @@ Hyperparameters include the following:
 - <ins>loopCountGen</ins>: When training, in the beginning the Discriminator tends to outperform the Generator leading to no training effect. Therefore the Generator is trained multiple times defined by this variable. A low loopCountGen will increase training speed. A too high loopCountGen will result in overfitting of the Generator also leading to no training effect.
 - <ins>thresh</ins>: If a value is provided also a thresEpochMin value has to be provided. This value has to be experimentally figured out. If this value is larger than the defined criterion of ```2*lossGen - lossDisReal - lossDisFake``` then the training can be altered. This alteration of training can be defined in the GAN.py file. For example the learning rate of the Discriminator and Generator can be adapted to keep training stable for a longer period. In our exmple in the GAN.py file we change the Dropout rate and the learning rate. This should only be done after other parameters have been tested and suffenciently well identified.
 
-```
+```py
  if epoch > self.threshEpochMin and abs(threshCriterion) > self.thresh and self.paramChange == 0:
     self.changePoint = epoch
     self.Gen.model[3].p = self.pDropoutNew
@@ -187,13 +193,14 @@ Note that we included standard values for all the parameters for our test cases.
 
 to track the training process the [wandb](https://wandb.ai/) library can be used. To do so, follow the set up guide of wandb. In the start.py file you can initalize your wandb run and devine the name of your project and if you want to see the training process online.
 
-```
+```py
 wandb.init( 
         project = 'GAN',    #set the wandb project where this run will be logged
         mode = 'offline',
         config = wandbHyperparams    #track hyperparameters and run metadata
     )
 ```
+
 If you dont want to use wandb explicitly with your own account leave the code as it is.
 
 ### Plots
