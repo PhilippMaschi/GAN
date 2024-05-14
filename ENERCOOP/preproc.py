@@ -1,4 +1,3 @@
-import cryptpandas as crp
 import pandas as pd
 import numpy as np
 
@@ -7,8 +6,8 @@ ALPHA = 0.2
 FEATURE_RANGE = (-1, 1)
 
 
-def import_data(filePath, password):
-    df = crp.read_encrypted(path = filePath, password = password)
+def import_data(filePath):
+    df = pd.read_csv(filePath)
     return df
 
 
@@ -25,7 +24,11 @@ def import_labels(filePath):
 
 def get_labels_for_cluster(filePath, clusterLabels):
     df = import_labels(filePath)
-    labels = df.loc[df['labels'].isin(clusterLabels), 'name'].to_list()
+    if len(clusterLabels) == 0:
+        labels = df.loc[:, "labels"].to_list()
+    else:
+        labels = df.loc[df['labels'].isin(clusterLabels), 'name'].to_list()
+
     return labels
 
 
@@ -93,8 +96,8 @@ def revert_reshape_arr(arr, dim = 3):
     return arr
 
 
-def data_preparation_wrapper(dataFilePath, password, labelsFilePath, clusterLabels, maxProfileCount):
-    df = import_data(dataFilePath, password)
+def data_preparation_wrapper(dataFilePath, labelsFilePath, clusterLabels, maxProfileCount):
+    df = import_data(dataFilePath)
     df = keep_only_full_weeks(df)
     labels = get_labels_for_cluster(labelsFilePath, clusterLabels)
     df_train = create_training_data(df, labels, maxProfileCount)

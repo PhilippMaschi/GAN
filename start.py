@@ -10,11 +10,11 @@ from plots import plot_wrapper
 
 ####################################################################################################
 
-#from ENERCOOP.X_train import X_trainResh, X_train
-#from ENERCOOP.params import params
+from ENERCOOP.X_train import X_trainResh, X_train
+from ENERCOOP.params import params
 
-from VITO.X_train import X_trainResh, X_train
-from VITO.params import params
+# from VITO.X_train import X_trainResh, X_train
+# from VITO.params import params
 
 ####################################################################################################
 
@@ -83,7 +83,6 @@ if __name__ == '__main__':
     wandb.watch(model)
 
     ################################################################################################
-
     model.train()
     wandb.finish()
 
