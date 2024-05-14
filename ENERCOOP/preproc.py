@@ -7,7 +7,7 @@ FEATURE_RANGE = (-1, 1)
 
 
 def import_data(filePath):
-    df = pd.read_csv(filePath)
+    df = pd.read_parquet(filePath)
     return df
 
 

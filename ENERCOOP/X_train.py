@@ -6,7 +6,7 @@ from ENERCOOP.preproc import data_preparation_wrapper, data_preparation_wrapper
 
 inputPath = Path().absolute() / 'ENERCOOP'
 print(inputPath)
-inputFilename = 'all_profiles.csv'
+inputFilename = 'all_load_profiles.parquet.gzip'
 labelsFilename = 'DBSCAN_15_clusters_labels.csv'
 #clusterLabels = list(range(0, 15))
 clusterLabels = [1]  # if list is empty, all labels are used so the whole dataset (not just one cluster)
