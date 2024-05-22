@@ -1,3 +1,11 @@
 __pycache__/
 runs/
 wandb/
+
+*.csv
+*.png
+*.gzip
+.*xml
+.*crypt
+.*xlsx
+.*iml
