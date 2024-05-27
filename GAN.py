@@ -193,7 +193,12 @@ class GAN(nn.Module):
     
     def save_model_state(self, epoch):
         torch.save({
+            'device': self.device,
             'epoch': epoch,
+            'dimNoise': self.dimNoise,
+            'profileCount': self.dataset.shape[0],
+            'gen_layers': self.modelGen,
+            'dis_layers': self.modelDis,
             'gen_state_dict': self.Gen.state_dict(),
             'dis_state_dict': self.Dis.state_dict(),
             'optim_gen_state_dict': self.optimGen.state_dict(),
@@ -230,6 +235,25 @@ def generate_data_from_saved_model(
     Gen.load_state_dict(modelState['gen_state_dict'])
     noise = randn(profileCount, dimNoise, 1, 1, device = device)    #! generalization needed
     xSynth = Gen(noise)
+    xSynth = xSynth.cpu().detach().numpy()
+    if invertNorm:
+        xSynth = invert_min_max_scaler(xSynth, minMax)
+    return xSynth
+
+
+def generate_data_from_any_saved_model(model, runPath, invertNorm = True):   #newer, use this outside of 'start.py'  #! generalization needed
+    device = model['device']
+    dimNoise = model['dimNoise']
+    profileCount = model['profileCount']
+    layersGen = model['gen_layers']
+    stateGen = model['gen_state_dict']
+
+    modelGen = Generator(layersGen)
+    modelGen.load_state_dict(stateGen)
+
+    minMax = np.load(runPath / 'min_max.npy')
+    noise = randn(profileCount, dimNoise, 1, 1, device = device)    #! generalization needed
+    xSynth = modelGen(noise)
     xSynth = xSynth.cpu().detach().numpy()
     if invertNorm:
         xSynth = invert_min_max_scaler(xSynth, minMax)

@@ -10,11 +10,13 @@ from plots import plot_wrapper
 
 ####################################################################################################
 
-from ENERCOOP.X_train import X_trainResh, X_train
-from ENERCOOP.params import params
+#from ENERCOOP.X_train import X_trainResh, X_train
+#from ENERCOOP.params import params
+#projectName = 'ENERCOOP'
 
-# from VITO.X_train import X_trainResh, X_train
-# from VITO.params import params
+from VITO.X_train import X_trainResh, X_train
+from VITO.params import params
+projectName = 'VITO'
 
 ####################################################################################################
 
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     )
     modelName = wandb.run.name
     folderName = f'{modelName}_{runName}' if len(modelName) > 0 else runName
-    outputPath = Path().absolute() / 'runs' / folderName
+    outputPath = Path().absolute() / 'runs' / projectName / folderName
     os.makedirs(outputPath)
 
     ################################################################################################
