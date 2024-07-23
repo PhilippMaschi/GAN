@@ -172,7 +172,9 @@ class GAN(nn.Module):
         xSynth = xSynth.cpu().detach().numpy()
         xSynth = invert_min_max_scaler(xSynth, self.arr_minMax, FEATURE_RANGE)
         xSynth = revert_reshape_arr(xSynth)
-        xSynth = xSynth[:self.dfIdx.get_loc(0)]
+        idx = self.dfIdx[:self.dfIdx.get_loc(0)]
+        xSynth = xSynth[:len(idx)]
+        xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
         return xSynth
 
 
@@ -185,5 +187,17 @@ def generate_data_from_saved_model(modelStatePath):
     xSynth = xSynth.cpu().detach().numpy()
     xSynth = invert_min_max_scaler(xSynth, modelState['minMax'], FEATURE_RANGE)
     xSynth = revert_reshape_arr(xSynth)
-    xSynth = xSynth[:modelState['dfIdx'].get_loc(0)]
-    return xSynth
+    idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc(0)]
+    xSynth = xSynth[:len(idx)]
+    xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
+    return xSynth, idx
+
+
+def export_synthetic_data(arr, outputPath, fileFormat, filename = 'synth_profiles'):
+    match fileFormat:
+        case 'npy':
+            np.save(file = outputPath / f'{filename}.npy', arr = arr)
+        case 'csv':
+            pd.DataFrame(arr).set_index(0).to_csv(outputPath / f'{filename}.csv')
+        case 'xlsx':
+            pd.DataFrame(arr).set_index(0).to_excel(outputPath / f'{filename}.xlsx')

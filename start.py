@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 import numpy as np
 
-from model.main import GAN
+from model.main import GAN, export_synthetic_data
 from model.plots import plot_wrapper
 
 ##################################################
@@ -16,8 +16,8 @@ WANDB_MODE = 'offline'
 #X_TRAIN = pd.read_excel(...)
 from preproc import X_TRAIN
 #MODEL_STATE_PATH = ...   # Specify if training of existing model should be continued
-#MODEL_STATE_PATH = r'C:\Users\Daniel\Projekte\Git\GAN_2\runs\ENERCOOP\lyric-capybara-115_2024_07_22_130434596\models\epoch_5000.pt'
 MODEL_STATE_PATH = None
+OUTPUT_FILE_FORMAT = 'npy'  # options: npy, csv, xlsx
 
 #################
 ##### Start #####
@@ -42,5 +42,5 @@ if __name__ == '__main__':
     )
     model.train()
     X_synth = model.generate_data()
-    np.save(file = outputPath / 'synth_profiles.npy', arr = X_synth)
+    export_synthetic_data(X_synth, outputPath, OUTPUT_FILE_FORMAT)
     plot_wrapper(X_TRAIN, X_synth, outputPath)
