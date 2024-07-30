@@ -83,7 +83,7 @@ class GAN(nn.Module):
             self.optimDis.load_state_dict(self.modelState['optim_dis_state_dict'])
 
 
-    def train(self):
+    def train(self, window):
         for epoch in tqdm(range(self.epochCount)):
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -140,6 +140,9 @@ class GAN(nn.Module):
             if self.trackProgress:
                 self.epochSamples.append(self.generate_data())
 
+            # Advance progress bar
+            window['PROGRESS'].update(current_count = epoch + 1)
+
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
 
@@ -194,10 +197,11 @@ def generate_data_from_saved_model(modelStatePath):
 
 
 def export_synthetic_data(arr, outputPath, fileFormat, filename = 'synth_profiles'):
+    print(outputPath / f'{filename}')
     match fileFormat:
-        case 'npy':
+        case '.npy':
             np.save(file = outputPath / f'{filename}.npy', arr = arr)
-        case 'csv':
+        case '.csv':
             pd.DataFrame(arr).set_index(0).to_csv(outputPath / f'{filename}.csv')
-        case 'xlsx':
+        case '.xlsx':
             pd.DataFrame(arr).set_index(0).to_excel(outputPath / f'{filename}.xlsx')

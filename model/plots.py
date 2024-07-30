@@ -8,7 +8,7 @@ def plot_losses(df, plotPath):
     plt.title('Training losses')
     plt.xlabel('epoch × batch_index')
     plt.ylabel('value')
-    plt.ylim(0, 10)
+    plt.ylim(0, df[['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator']].max().max()*1.1)
     plt.savefig(plotPath / 'training_losses.png')
     plt.close();
 
@@ -53,6 +53,7 @@ def plot_means(X_real, X_synth, plotPath):
 def plot_wrapper(X_real, X_synth, runPath):
     plotPath = runPath / 'plots'
     os.makedirs(plotPath) if not os.path.exists(plotPath) else None
+    X_synth = X_synth[:, 1:]
     compare_distributions(X_real, X_synth, plotPath)
     plot_peaks(X_real, X_synth, plotPath)
     plot_means(X_real, X_synth, plotPath)
