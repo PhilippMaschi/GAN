@@ -166,7 +166,8 @@ class GAN(nn.Module):
             'dis_state_dict': self.Dis.state_dict(),
             'optim_gen_state_dict': self.optimGen.state_dict(),
             'optim_dis_state_dict': self.optimDis.state_dict(),
-            'continued_from': self.modelStatePath
+            'continued_from': self.modelStatePath,
+            'feature_range': FEATURE_RANGE
         }, self.modelPath / f'epoch_{epoch + 1}.pt')
 
     def generate_data(self):
@@ -193,7 +194,7 @@ def generate_data_from_saved_model(modelStatePath):
     idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc(0)]
     xSynth = xSynth[:len(idx)]
     xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
-    return xSynth, idx
+    return xSynth
 
 
 def export_synthetic_data(arr, outputPath, fileFormat, filename = 'synth_profiles'):

@@ -3,7 +3,6 @@ from datetime import datetime
 import pandas as pd
 import wandb
 from pathlib import Path
-import os
 
 from model.params import params
 from model.main import GAN, export_synthetic_data
@@ -43,8 +42,9 @@ if __name__ == '__main__':
             runNameTSSuffix = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]   #added to the end of the run name
             runName = f'{modelName}_{runNameTSSuffix}' if len(modelName) > 0 else runNameTSSuffix
             outputPath = Path().absolute() / 'runs' / values[0] / runName
-            os.makedirs(outputPath)
-            X_train = pd.read_csv(values[1], index_col = 'Date/Time')
+            outputPath.mkdir(parents = True, exist_ok = True)
+            X_train = pd.read_csv(values[1])
+            X_train = X_train.set_index(X_train.columns[0])
 
             model = GAN(
                 dataset = X_train,
