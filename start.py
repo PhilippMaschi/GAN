@@ -34,18 +34,22 @@ if __name__ == '__main__':
                     [sg.Combo(['off', 'on'], default_value = DEFAULT_WANDB_MODE)]
                 ]),
                 sg.Tab('Advanced', [
-                    [sg.Text('Number of epochs:')],
-                    [sg.InputText(default_text = params['epochCount'], s = (25))],
-                    [sg.Text('Batch size:')],
-                    [sg.InputText(default_text = params['batchSize'], s = (25))],
-                    [sg.Text('Generator learning rate:')],
-                    [sg.InputText(default_text = params['lrGen'], s = (25))],
-                    [sg.Text('Discriminator learning rate:')],
-                    [sg.InputText(default_text = params['lrDis'], s = (25))],
-                    [sg.Text('Model save frequency:')],
-                    [sg.InputText(default_text = params['modelSaveFreq'], s = (25))],
-                    [sg.Text('Track progress (memory-intensive):')],
-                    [sg.Combo(['off', 'on'], default_value = params['trackProgress'])]
+                    [sg.Col([
+                        [sg.Text('Number of epochs:')],
+                        [sg.InputText(default_text = params['epochCount'], s = (25))],
+                        [sg.Text('Batch size:')],
+                        [sg.InputText(default_text = params['batchSize'], s = (25))],
+                        [sg.Text('Generator learning rate:')],
+                        [sg.InputText(default_text = params['lrGen'], s = (25))]
+                    ]),
+                    sg.Col([
+                        [sg.Text('Discriminator learning rate:')],
+                        [sg.InputText(default_text = params['lrDis'], s = (25))],
+                        [sg.Text('Model save frequency:')],
+                        [sg.InputText(default_text = params['modelSaveFreq'], s = (25))],
+                        [sg.Text('Track progress (memory-intensive):')],
+                        [sg.Combo(['off', 'on'], default_value = params['trackProgress'])]
+                    ])]
                 ]),
             ]])
         ],
