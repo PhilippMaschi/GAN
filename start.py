@@ -18,13 +18,28 @@ DEFAULT_WANDB_MODE = 'off'
 
 if __name__ == '__main__':
     layout = [
-        [sg.Text('Enter a project name:'), sg.InputText(default_text = DEFAULT_PROJECT_NAME, s = (10))],
-        [sg.Text('Enter an input file path:'), sg.InputText(default_text = DEFAULT_INPUT_PATH, s = 70)],
-        [sg.Text('Enter a model path to continue training (optional):'), sg.InputText(default_text = DEFAULT_MODEL_PATH, s = 70)],
-        [sg.Text('Select an output file format:'), sg.Combo(['.npy', '.csv', '.xlsx'], default_value = DEFAULT_OUTPUT_FILE_FORMAT)],
-        [sg.Text('Wandb:'), sg.Combo(['off', 'on'], default_value = DEFAULT_WANDB_MODE)],
+        [
+            sg.TabGroup([[
+                sg.Text('Options', ),
+                sg.Tab('Basic', [
+                    [sg.Text('Enter a project name:')],
+                    [sg.InputText(default_text = DEFAULT_PROJECT_NAME, s = (75))],
+                    [sg.Text('Enter an input file path:')],
+                    [sg.InputText(default_text = DEFAULT_INPUT_PATH, s = 75)],
+                    [sg.Text('Enter a model path to continue training (optional):')],
+                    [sg.InputText(default_text = DEFAULT_MODEL_PATH, s = 75)],
+                    [sg.Text('Select an output file format:')],
+                    [sg.Combo(['.npy', '.csv', '.xlsx'], default_value = DEFAULT_OUTPUT_FILE_FORMAT)],
+                    [sg.Text('Wandb:')],
+                    [sg.Combo(['off', 'on'], default_value = DEFAULT_WANDB_MODE)]
+                ]),
+                sg.Tab('Advanced', [
+                    []
+                ]),
+            ]])
+        ],
         [sg.Button('Run'), sg.Button('Cancel')],
-        [sg.ProgressBar(params['epochCount'] + 3, key = 'PROGRESS', s = (65, 12))]
+        [sg.ProgressBar(params['epochCount'] + 3, key = 'PROGRESS', s = (42, 12))],
     ]
 
     window = sg.Window('GAN', layout)
