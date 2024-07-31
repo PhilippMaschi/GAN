@@ -5,9 +5,9 @@ import os
 from tqdm import tqdm
 import torch
 import numpy as np
+from math import ceil
 
 from model.data_manip import data_prep_wrapper, invert_min_max_scaler, revert_reshape_arr
-from model.params import params
 from model.layers import layersGen, layersDis
 from model.plots import plot_losses
 
@@ -41,6 +41,7 @@ class GAN(nn.Module):
             self,
             dataset,
             outputPath,
+            params,
             wandb = None,
             modelStatePath = None
         ):
@@ -84,6 +85,7 @@ class GAN(nn.Module):
 
 
     def train(self, window):
+        progressBarCounter = 0
         for epoch in tqdm(range(self.epochCount)):
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -141,7 +143,9 @@ class GAN(nn.Module):
                 self.epochSamples.append(self.generate_data())
 
             # Advance progress bar
-            window['PROGRESS'].update(current_count = epoch + 1)
+            if (epoch + 1)%(ceil(self.epochCount/18)) == 0 or epoch + 1 == self.epochCount:
+                progressBarCounter += 1
+                window['PROGRESS'].update(current_count = progressBarCounter)
 
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
@@ -197,7 +201,7 @@ def generate_data_from_saved_model(modelStatePath):
     return xSynth
 
 
-def export_synthetic_data(arr, outputPath, fileFormat, filename = 'synth_profiles'):
+def export_synthetic_data(arr, outputPath, fileFormat, filename = 'example_synth_profiles'):
     print(outputPath / f'{filename}')
     match fileFormat:
         case '.npy':

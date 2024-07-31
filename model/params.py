@@ -14,7 +14,7 @@ params = {
     'labelFake': 0,
     'modelSaveFreq': 1000,
     'loopCountGen': 3,
-    'trackProgress': False,
+    'trackProgress': 'off',
     'dimNoise': 64,
     'dimHidden': 64,
     'channelCount': 1
