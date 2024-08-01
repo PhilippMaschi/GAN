@@ -5,7 +5,7 @@ import wandb
 from pathlib import Path
 
 from model.params import params
-from model.main import GAN, export_synthetic_data
+from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
 from model.plots import plot_wrapper
 
 
@@ -26,7 +26,8 @@ if __name__ == '__main__':
                     [sg.InputText(default_text = DEFAULT_PROJECT_NAME, s = (75))],
                     [sg.Text('Enter an input file path:')],
                     [sg.InputText(default_text = DEFAULT_INPUT_PATH, s = 75)],
-                    [sg.Text('Enter a model path to continue training (optional):')],
+                    [sg.Text('Enter a model path (optional):')],
+                    [sg.Radio('Continue training', group_id = 1, default = True), sg.Radio('Generate profiles', group_id = 1)],
                     [sg.InputText(default_text = DEFAULT_MODEL_PATH, s = 75)],
                     [sg.Text('Select an output file format:')],
                     [sg.Combo(['.npy', '.csv', '.xlsx'], default_value = DEFAULT_OUTPUT_FILE_FORMAT)],
@@ -63,10 +64,10 @@ if __name__ == '__main__':
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Cancel':
             break
-        elif event == 'Run':
+        elif event == 'Run' and (values[2] or len(values[4]) == 0):
             wandb.init(
                 project = 'GAN',
-                mode = values[4] + 'line'
+                mode = values[6] + 'line'
             )
             modelName = wandb.run.name
             runNameTSSuffix = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]   #added to the end of the run name
@@ -76,25 +77,34 @@ if __name__ == '__main__':
             X_train = pd.read_csv(values[1])
             X_train = X_train.set_index(X_train.columns[0])
 
-            params['epochCount'] = int(values[5])
-            params['batchSize'] = int(values[6])
-            params['lrGen'] = float(values[7])
-            params['lrDis'] = float(values[8])
-            params['modelSaveFreq'] = int(values[9])
-            params['trackProgress'] = True if values[10] == 'on' else False
+            params['epochCount'] = int(values[7])
+            params['batchSize'] = int(values[8])
+            params['lrGen'] = float(values[9])
+            params['lrDis'] = float(values[10])
+            params['modelSaveFreq'] = int(values[11])
+            params['trackProgress'] = True if values[12] == 'on' else False
 
             model = GAN(
                 dataset = X_train,
                 outputPath = outputPath,
                 params = params,
                 wandb = wandb,
-                modelStatePath = None if len(values[2]) == 0 else values[2],
+                modelStatePath = None if len(values[4]) == 0 else values[4],
             )
             model.train(window)
             X_synth = model.generate_data()
             window['PROGRESS'].update(current_count = 19)
-            export_synthetic_data(X_synth, outputPath, values[3])
+            export_synthetic_data(X_synth, outputPath, values[5])
             window['PROGRESS'].update(current_count = 20)
             plot_wrapper(X_train, X_synth, outputPath)
+            window['PROGRESS'].update(current_count = 21)
+            break
+        elif event == 'Run' and values[3]:
+            outputPath = Path(values[4]).parent.parent / Path(values[4]).name[:-3] / 'generated_profiles'
+            outputPath.mkdir(parents = True, exist_ok = True)
+            window['PROGRESS'].update(current_count = 7)
+            X_synth = generate_data_from_saved_model(values[4])
+            window['PROGRESS'].update(current_count = 14)
+            export_synthetic_data(X_synth, outputPath, values[5], 'synth_profiles')
             window['PROGRESS'].update(current_count = 21)
             break
