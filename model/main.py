@@ -143,9 +143,10 @@ class GAN(nn.Module):
                 self.epochSamples.append(self.generate_data())
 
             # Advance progress bar
-            if (epoch + 1)%(ceil(self.epochCount/18)) == 0 or epoch + 1 == self.epochCount:
-                progressBarCounter += 1
-                window['PROGRESS'].update(current_count = progressBarCounter)
+            if window:
+                if (epoch + 1)%(ceil(self.epochCount/18)) == 0 or epoch + 1 == self.epochCount:
+                    progressBarCounter += 1
+                    window['PROGRESS'].update(current_count = progressBarCounter)
 
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
