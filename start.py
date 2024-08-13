@@ -122,21 +122,6 @@ global progress
 progress = ttk.Progressbar(root, length = 620)
 progress.pack(pady = (0, 10))
 
-def print_all():
-    print(projectName_entry.get())
-    print(inputPath_entry.get())
-    print(modelPathRadio.get())
-    print(modelPath_entry.get())
-    print(outputFormat_menu.get())
-    print(wandb_menu.get())
-    print(epochCount_entry.get())
-    print(type(batchSize_entry.get()))
-    print(lrGen_entry.get())
-    print(lrDis_entry.get())
-    print(modelSaveFreq_entry.get())
-    print(trackProgress_menu.get())
-    progress['value'] = 40
-
 def run():
     if (int(modelPathRadio.get()) != 2 or len(modelPath_entry.get()) == 0):
         wandb.init(
