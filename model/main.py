@@ -84,8 +84,7 @@ class GAN(nn.Module):
             self.optimDis.load_state_dict(self.modelState['optim_dis_state_dict'])
 
 
-    def train(self, window):
-        progressBarCounter = 0
+    def train(self, progress = None, root = None):
         for epoch in tqdm(range(self.epochCount)):
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -143,10 +142,10 @@ class GAN(nn.Module):
                 self.epochSamples.append(self.generate_data())
 
             # Advance progress bar
-            if window:
-                if (epoch + 1)%(ceil(self.epochCount/18)) == 0 or epoch + 1 == self.epochCount:
-                    progressBarCounter += 1
-                    window['PROGRESS'].update(current_count = progressBarCounter)
+            if progress:
+                if (epoch + 1)%(ceil(self.epochCount/10)) == 0 or epoch + 1 == self.epochCount:
+                    progress['value'] += 7
+                    root.update()
 
         # Plot losses
         plot_losses(self.df_loss, self.plotPath)
