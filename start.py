@@ -122,6 +122,8 @@ global progress
 progress = ttk.Progressbar(root, length = 620)
 progress.pack(pady = (0, 10))
 
+####################################################################################################
+
 def run():
     if (int(modelPathRadio.get()) != 2 or len(modelPath_entry.get()) == 0):
         wandb.init(
