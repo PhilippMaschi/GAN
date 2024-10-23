@@ -10,3 +10,4 @@ wandb/
 *.xlsx
 *.iml
 *.ipynb
+*.exe.lnk

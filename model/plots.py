@@ -14,7 +14,7 @@ def plot_losses(df, plotPath):
 
 
 def compare_distributions(X_real, X_synth, plotPath):
-    plt.figure(figsize = (8, 5), facecolor = 'w')
+    fig = plt.figure(figsize = (8, 5), facecolor = 'w')
     plt.hist(np.array(X_real).flatten(), bins = 100, alpha = 0.5, label = 'Real', color = 'aqua')
     plt.hist(np.array(X_synth).flatten(), bins = 100, alpha = 0.5, label = 'Synthetic', color = 'hotpink')
     plt.title('Comparison of the distributions of the values')
@@ -23,7 +23,7 @@ def compare_distributions(X_real, X_synth, plotPath):
     plt.legend()
     plt.tight_layout()
     plt.savefig(plotPath / 'load_distrib.png')
-    plt.close();
+    return fig;
 
 
 def plot_peaks(X_real, X_synth, plotPath):
@@ -35,7 +35,7 @@ def plot_peaks(X_real, X_synth, plotPath):
     plt.title(f'Comparison of peak values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'peaks.png')
-    plt.close();
+    return fig;
 
 
 def plot_means(X_real, X_synth, plotPath):
@@ -47,13 +47,15 @@ def plot_means(X_real, X_synth, plotPath):
     plt.title(f'Comparison of mean values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'means.png')
-    plt.close();
+    return fig;
 
 
-def plot_wrapper(X_real, X_synth, runPath):
+def plot_wrapper(X_real, X_synth, runPath, return_ = False):
     plotPath = runPath / 'plots'
     os.makedirs(plotPath) if not os.path.exists(plotPath) else None
     X_synth = X_synth[:, 1:]
-    compare_distributions(X_real, X_synth, plotPath)
-    plot_peaks(X_real, X_synth, plotPath)
-    plot_means(X_real, X_synth, plotPath)
+    fig_comp = compare_distributions(X_real, X_synth, plotPath)
+    fig_peaks = plot_peaks(X_real, X_synth, plotPath)
+    fig_means = plot_means(X_real, X_synth, plotPath)
+    if return_:
+        return fig_comp, fig_peaks, fig_means
