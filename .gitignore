@@ -11,3 +11,8 @@ wandb/
 *.iml
 *.ipynb
 *.exe.lnk
+.venv/
+*.pt
+*.npy
+*.0
+*.gv
