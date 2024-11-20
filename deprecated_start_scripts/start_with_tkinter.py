@@ -1,5 +1,5 @@
-DEFAULT_PROJECT_NAME = 'VITO'
-DEFAULT_INPUT_PATH = r'C:\Users\Daniel\Projekte\Git\GAN\data\VITO\electricityConsumptionrPVHPRen.csv'
+DEFAULT_PROJECT_NAME = 'project_1'
+DEFAULT_INPUT_PATH = r''
 
 ####################################################################################################
 

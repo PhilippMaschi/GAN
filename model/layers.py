@@ -6,7 +6,7 @@ from model.params import params
 DIM_NOISE = params['dimNoise']
 DIM_HIDDEN = params['dimHidden']
 CHANNEL_COUNT = params['channelCount']
-P_DROPOUT = 0.04
+P_DROPOUT = 0.2
 
 
 layersGen = nn.Sequential(

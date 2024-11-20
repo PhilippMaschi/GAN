@@ -20,7 +20,7 @@ def read_data(file):
 
 
 # Default values
-DEFAULT_PROJECTNAME = 'test'
+DEFAULT_PROJECTNAME = 'project_1'
 DEFAULT_EPOCHCOUNT = params['epochCount']
 DEFAULT_BATCHSIZE = params['batchSize']
 DEFAULT_LRGEN = params['lrGen']
@@ -123,8 +123,8 @@ def start():
         # Create results
         X_synth = model.generate_data()
         export_synthetic_data(X_synth, outputPath, outputFormat.value)
-        fig_comp, fig_peaks, fig_means = plot_wrapper(X_train, X_synth, outputPath, True)
-        return fig_comp, fig_peaks, fig_means
+        #fig_comp, fig_peaks, fig_means = plot_wrapper(X_train, X_synth, outputPath, True)
+        #return fig_comp, fig_peaks, fig_means
 
 
     elif modelRadio == 'Generate profiles':

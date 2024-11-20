@@ -11,3 +11,8 @@ wandb/
 *.iml
 *.ipynb
 *.exe.lnk
+*.zip
+
+!sample_data/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv
+!sample_data/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_noHP_resampled.csv
+!sample_data/README.txt

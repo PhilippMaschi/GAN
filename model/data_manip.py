@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import csv
 
 
 def add_zeros_rows(df: pd.DataFrame, dayCount: int) -> pd.DataFrame:
@@ -129,6 +130,22 @@ def data_prep_wrapper(df: pd.DataFrame, dayCount: int, featureRange: tuple[int, 
     """
     df = add_zeros_rows(df, dayCount)
     arr, dfIdx = df_to_arr(df)
+    print(arr)
+    print(arr.shape)
     arr = reshape_arr(arr, dayCount)
     arr, arr_minMax = min_max_scaler(arr, featureRange)
     return arr, dfIdx, arr_minMax
+
+
+def get_sep(path):
+    """Determines the separator used in a CSV file.
+
+    Args:
+        path (str): Path to the file.
+
+    Returns:
+        str: The separator.
+    """
+    with open(path, newline = '') as file:
+        sep = csv.Sniffer().sniff(file.read()).delimiter
+        return sep

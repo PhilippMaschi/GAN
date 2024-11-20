@@ -9,8 +9,8 @@ from model.main import GAN, export_synthetic_data, generate_data_from_saved_mode
 from model.plots import plot_wrapper
 
 
-DEFAULT_PROJECT_NAME = 'VITO'
-DEFAULT_INPUT_PATH = r'C:\Users\Daniel\Projekte\Git\GAN\data\VITO\electricityConsumptionrPVHPRen.csv'
+DEFAULT_PROJECT_NAME = 'project_1'
+DEFAULT_INPUT_PATH = r''
 DEFAULT_MODEL_PATH = ''
 DEFAULT_OUTPUT_FILE_FORMAT = '.npy'
 DEFAULT_WANDB_MODE = 'off'

@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import os
 
@@ -50,6 +51,13 @@ def plot_means(X_real, X_synth, plotPath):
     return fig;
 
 
+def plot_mean_profiles(X_synth, plotPath):
+    plt.figure(figsize = (10, 5))
+    sns.heatmap(X_synth.astype(float).mean(axis = 1).reshape(24, -1))
+    plt.title('Mean synthetic profile')
+    plt.savefig(plotPath / 'mean_synth_profile.png');
+
+
 def plot_wrapper(X_real, X_synth, runPath, return_ = False):
     plotPath = runPath / 'plots'
     os.makedirs(plotPath) if not os.path.exists(plotPath) else None
@@ -57,5 +65,14 @@ def plot_wrapper(X_real, X_synth, runPath, return_ = False):
     fig_comp = compare_distributions(X_real, X_synth, plotPath)
     fig_peaks = plot_peaks(X_real, X_synth, plotPath)
     fig_means = plot_means(X_real, X_synth, plotPath)
+    plot_mean_profiles(X_synth, plotPath)
     if return_:
         return fig_comp, fig_peaks, fig_means
+
+
+def model_plot_wrapper(X_real, X_synth, plotPath):
+    X_synth = X_synth[:, 1:]
+    compare_distributions(X_real, X_synth, plotPath)
+    plot_peaks(X_real, X_synth, plotPath)
+    plot_means(X_real, X_synth, plotPath)
+    plot_mean_profiles(X_synth, plotPath)
