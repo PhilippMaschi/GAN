@@ -19,3 +19,5 @@ wandb/
 *.gv
 
 !*/sample_data/opendata_fluvius/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv
+!/readme/Example_CSV_structure.png
+!/readme/Marimo_Run.png
