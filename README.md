@@ -56,7 +56,7 @@ The first column of the CSV file needs to be an index column (ideally containing
 
 Example:
 
-![Example_CSV_structure](\readme\Example_CSV_structure.png)
+![Example_CSV_structure](/readme/Example_CSV_structure.png)
 
 
 
@@ -83,7 +83,7 @@ The notebook consists of two blocks:
 
 After uploading the required file(s) and adjusting the settings, the program can be started by pressing the "Run" button below the options menu. A new cell displaying the training progress will appear:
 
-![Marimo_Run](\readme\Marimo_Run.png)
+![Marimo_Run](/readme/Marimo_Run.png)
 
 #### Python script
 
