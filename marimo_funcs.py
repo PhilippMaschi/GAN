@@ -7,6 +7,7 @@ from pathlib import Path
 
 from model.params import params
 from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
+from model.data_manip import get_sep_marimo
 from model.plots import plot_wrapper
 
 
@@ -14,7 +15,7 @@ from model.plots import plot_wrapper
 def read_data(file):
     str_ = str(file.contents(), 'utf-8')
     data = StringIO(str_)
-    df = pd.read_csv(data)
+    df = pd.read_csv(data, sep = get_sep_marimo(data))
     df = df.set_index(df.columns[0])
     return df
 

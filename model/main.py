@@ -214,7 +214,6 @@ def generate_data_from_saved_model(modelStatePath):
 
 
 def export_synthetic_data(arr, outputPath, fileFormat, filename = 'example_synth_profiles'):
-    print(outputPath / f'{filename}')
     match fileFormat:
         case '.npy':
             np.save(file = outputPath / f'{filename}.npy', arr = arr)

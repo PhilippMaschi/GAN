@@ -2,14 +2,14 @@
 PROJECT_NAME = 'project_1'
 
 # Input file path
-INPUT_PATH = r''
+INPUT_PATH = r'data\sample_data\opendata_fluvius\P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
 
 # Model state path (optional, for continuation of training or generation of data)
 MODEL_PATH = None
 #MODEL_PATH = r''
 
 # Create synthetic data from existing model (if True, there is no training)
-CREATE_DATA = True
+CREATE_DATA = False
 
 # Output file format ('npy', 'csv' or 'xlsx')
 OUTPUT_FILE_FORMAT = '.npy'
@@ -18,7 +18,7 @@ OUTPUT_FILE_FORMAT = '.npy'
 USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 300
+EPOCH_COUNT = 5
 
 # Change the model save frequency
 MODEL_SAVE_FREQ = 50

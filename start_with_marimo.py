@@ -35,32 +35,8 @@ def __(mo, runButton, start):
     mo.stop(not runButton.value)
 
     print('Running...')
-    fig_comp, fig_peaks, fig_means = start()
+    start()
     print('Done!')
-    return fig_comp, fig_means, fig_peaks
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md("""# Plots""")
-    return
-
-
-@app.cell(hide_code=True)
-def __(fig_comp, mo):
-    mo.mpl.interactive(fig_comp)
-    return
-
-
-@app.cell(hide_code=True)
-def __(fig_peaks, mo):
-    mo.mpl.interactive(fig_peaks)
-    return
-
-
-@app.cell(hide_code=True)
-def __(fig_means, mo):
-    mo.mpl.interactive(fig_means)
     return
 
 

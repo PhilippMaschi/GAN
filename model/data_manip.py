@@ -130,8 +130,6 @@ def data_prep_wrapper(df: pd.DataFrame, dayCount: int, featureRange: tuple[int, 
     """
     df = add_zeros_rows(df, dayCount)
     arr, dfIdx = df_to_arr(df)
-    print(arr)
-    print(arr.shape)
     arr = reshape_arr(arr, dayCount)
     arr, arr_minMax = min_max_scaler(arr, featureRange)
     return arr, dfIdx, arr_minMax
@@ -149,3 +147,16 @@ def get_sep(path):
     with open(path, newline = '') as file:
         sep = csv.Sniffer().sniff(file.read()).delimiter
         return sep
+
+
+def get_sep_marimo(data):
+    """Determines the separator used in a CSV file for the marimo notebook.
+
+    Args:
+        data (_io.StringI): Data object from marimo file uploader.
+
+    Returns:
+        str: The separator.
+    """
+    sep = csv.Sniffer().sniff(data.getvalue()).delimiter
+    return sep
