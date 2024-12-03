@@ -24,7 +24,7 @@ def compare_distributions(X_real, X_synth, plotPath):
     plt.legend()
     plt.tight_layout()
     plt.savefig(plotPath / 'load_distrib.png')
-    return fig;
+    plt.close();
 
 
 def plot_peaks(X_real, X_synth, plotPath):
@@ -36,7 +36,7 @@ def plot_peaks(X_real, X_synth, plotPath):
     plt.title(f'Comparison of peak values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'peaks.png')
-    return fig;
+    plt.close();
 
 
 def plot_means(X_real, X_synth, plotPath):
@@ -48,10 +48,70 @@ def plot_means(X_real, X_synth, plotPath):
     plt.title(f'Comparison of mean values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'means.png')
-    return fig;
+    plt.close();
 
 
-def plot_mean_profiles(X_synth, plotPath):
+def plot_stds(X_real, X_synth, plotPath):
+    stdsReal = X_real.std(axis = 0)
+    stdsSynth = X_synth.std(axis = 0)
+    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
+    ax.boxplot([stdsReal, stdsSynth])
+    ax.set_xticklabels(['Real std', 'Synthetic std'])
+    plt.title(f'Comparison of standard deviation values')
+    plt.ylabel('Value')
+    plt.savefig(plotPath / 'stds.png')
+    plt.close();
+
+
+def plot_medians(X_real, X_synth, plotPath):
+    mediansReal = np.median(X_real, axis = 0)
+    mediansSynth = np.median(X_synth, axis = 0)
+    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
+    ax.boxplot([mediansReal, mediansSynth])
+    ax.set_xticklabels(['Real medians', 'Synthetic medians'])
+    plt.title(f'Comparison of median values')
+    plt.ylabel('Value')
+    plt.savefig(plotPath / 'medians.png')
+    plt.close();
+
+
+def plot_skews(X_real, X_synth, plotPath):
+    skewsReal = 3*(X_real.mean(axis = 0) - np.median(X_real, axis = 0))/X_real.std(axis = 0)
+    skewsSynth = 3*(X_synth.mean(axis = 0) - np.median(X_synth, axis = 0))/X_real.std(axis = 0)
+    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
+    ax.boxplot([skewsReal, skewsSynth])
+    ax.set_xticklabels(['Real skews', 'Synthetic skews'])
+    plt.title(f'Comparison of skewness values')
+    plt.ylabel('Value')
+    plt.savefig(plotPath / 'skews.png')
+    plt.close();
+
+
+def plot_mins(X_real, X_synth, plotPath):
+    minsReal = X_real.min(axis = 0)
+    minsSynth = X_synth.min(axis = 0)
+    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
+    ax.boxplot([minsReal, minsSynth])
+    ax.set_xticklabels(['Real min', 'Synthetic min'])
+    plt.title(f'Comparison of minimum values')
+    plt.ylabel('Value')
+    plt.savefig(plotPath / 'mins.png')
+    plt.close();
+
+
+def plot_maxs(X_real, X_synth, plotPath):
+    maxsReal = X_real.max(axis = 0)
+    maxsSynth = X_synth.max(axis = 0)
+    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
+    ax.boxplot([maxsReal, maxsSynth])
+    ax.set_xticklabels(['Real max', 'Synthetic max'])
+    plt.title(f'Comparison of maximum values')
+    plt.ylabel('Value')
+    plt.savefig(plotPath / 'maxs.png')
+    plt.close();
+
+
+def plot_mean_profile(X_synth, plotPath):
     plt.figure(figsize = (10, 5))
     sns.heatmap(X_synth.astype(float).mean(axis = 1).reshape(24, -1))
     plt.title('Mean synthetic profile')
@@ -65,14 +125,21 @@ def plot_wrapper(X_real, X_synth, runPath, return_ = False):
     fig_comp = compare_distributions(X_real, X_synth, plotPath)
     fig_peaks = plot_peaks(X_real, X_synth, plotPath)
     fig_means = plot_means(X_real, X_synth, plotPath)
-    plot_mean_profiles(X_synth, plotPath)
+    plot_mean_profile(X_synth, plotPath)
     if return_:
         return fig_comp, fig_peaks, fig_means
 
 
 def model_plot_wrapper(X_real, X_synth, plotPath):
     X_synth = X_synth[:, 1:]
+    X_real = X_real.astype(float)
+    X_synth = X_synth.astype(float)
     compare_distributions(X_real, X_synth, plotPath)
     plot_peaks(X_real, X_synth, plotPath)
     plot_means(X_real, X_synth, plotPath)
-    plot_mean_profiles(X_synth, plotPath)
+    plot_stds(X_real, X_synth, plotPath)
+    plot_medians(X_real, X_synth, plotPath)
+    plot_skews(X_real, X_synth, plotPath)
+    plot_mins(X_real, X_synth, plotPath)
+    plot_maxs(X_real, X_synth, plotPath)
+    plot_mean_profile(X_synth, plotPath)

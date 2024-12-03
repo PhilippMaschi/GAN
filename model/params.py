@@ -12,10 +12,12 @@ params = {
     'epochCount': 100,
     'labelReal': 1,
     'labelFake': 0,
-    'modelSaveFreq': 1000,
+    'resultSaveFreq': 1000,
     'loopCountGen': 3,
-    'trackProgress': 'off',
+    'saveSamples': False,
+    'saveModels': False,
     'dimNoise': 128,
     'dimHidden': 16,
-    'channelCount': 1
+    'channelCount': 1,
+    'outputFileFormat': '.npy'
 }

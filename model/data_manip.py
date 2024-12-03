@@ -26,6 +26,8 @@ def add_zeros_rows(df: pd.DataFrame, dayCount: int) -> pd.DataFrame:
     if addRowCount < 0:
         raise ValueError(f'The maximum amount of days allowed is {dayCount}!')
     df_zeros = pd.DataFrame(np.zeros((addRowCount, df.shape[1])), columns = df.columns)
+    df_zeros.index = df_zeros.index.astype(str)
+    df_zeros.index = '#####' + df_zeros.index.astype(str)
     df = pd.concat([df, df_zeros])
     return df
 

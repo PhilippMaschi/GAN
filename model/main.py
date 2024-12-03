@@ -71,6 +71,10 @@ class GAN(nn.Module):
         self.epochSamples = []
         self.modelPath = self.outputPath / 'models'
         os.makedirs(self.modelPath)
+        self.plotPath = self.outputPath / 'plots'
+        os.makedirs(self.plotPath)
+        self.samplePath = self.outputPath / 'sample_data'
+        os.makedirs(self.samplePath)
 
         # Continue training model
         if self.modelStatePath:
@@ -134,18 +138,25 @@ class GAN(nn.Module):
                     'loss_generator': totalLossGen/len(self.dataLoader)
                 })
 
-            # Save model state
-            if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
-                epochPath = self.modelPath / f'epoch_{epoch + 1}'
-                plotPath = epochPath / 'plots'
-                os.makedirs(plotPath)
-                self.save_model_state(epoch, epochPath)
-                plot_losses(self.df_loss, plotPath)
+            # Export results
+            if (epoch + 1) % self.resultSaveFreq == 0 or epoch + 1 == self.epochCount:
+                epochPlotPath = self.plotPath / f'epoch_{epoch + 1}'
+                os.makedirs(epochPlotPath)
 
-                # Track progress
-                if self.trackProgress:
-                    sampleTemp = self.generate_data()
-                    model_plot_wrapper(self.inputDataset, sampleTemp, plotPath)
+                sampleTemp = self.generate_data()
+                model_plot_wrapper(self.inputDataset, sampleTemp, epochPlotPath)
+                
+                # Save samples
+                if self.saveSamples or epoch + 1 == self.epochCount:
+                    epochSamplePath = self.samplePath / f'epoch_{epoch + 1}'
+                    os.makedirs(epochSamplePath)
+                    export_synthetic_data(sampleTemp, epochSamplePath, self.outputFileFormat)
+
+                # Save models
+                if self.saveModels or epoch + 1 == self.epochCount:
+                    epochModelPath = self.modelPath / f'epoch_{epoch + 1}'
+                    os.makedirs(epochModelPath)
+                    self.save_model_state(epoch, epochModelPath)
 
             # Advance progress bar
             if progress:
@@ -186,7 +197,7 @@ class GAN(nn.Module):
         xSynth = xSynth.cpu().detach().numpy()
         xSynth = invert_min_max_scaler(xSynth, self.arr_minMax, FEATURE_RANGE)
         xSynth = revert_reshape_arr(xSynth)
-        idx = self.dfIdx[:self.dfIdx.get_loc(0)]
+        idx = self.dfIdx[:self.dfIdx.get_loc('#####0')]
         xSynth = xSynth[:len(idx)]
         xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
         return xSynth
@@ -207,17 +218,22 @@ def generate_data_from_saved_model(modelStatePath):
     xSynth = xSynth.cpu().detach().numpy()
     xSynth = invert_min_max_scaler(xSynth, modelState['minMax'], FEATURE_RANGE)
     xSynth = revert_reshape_arr(xSynth)
-    idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc(0)]
+    idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc('#####0')]
     xSynth = xSynth[:len(idx)]
     xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
     return xSynth
 
 
 def export_synthetic_data(arr, outputPath, fileFormat, filename = 'example_synth_profiles'):
+    filePath = outputPath / f'{filename}{fileFormat}'
+    fileNewIdx = 2
+    while filePath.is_file():
+        filePath = outputPath / f'{filename}_{fileNewIdx}{fileFormat}'
+        fileNewIdx += 1
     match fileFormat:
         case '.npy':
-            np.save(file = outputPath / f'{filename}.npy', arr = arr)
+            np.save(file = filePath, arr = arr)
         case '.csv':
-            pd.DataFrame(arr).set_index(0).to_csv(outputPath / f'{filename}.csv')
+            pd.DataFrame(arr).set_index(0).to_csv(filePath)
         case '.xlsx':
-            pd.DataFrame(arr).set_index(0).to_excel(outputPath / f'{filename}.xlsx')
+            pd.DataFrame(arr).set_index(0).to_excel(filePath)
