@@ -164,8 +164,9 @@ class GAN(nn.Module):
                     progress['value'] += 7
                     root.update()
 
-        # Save losses in CSV file
+        # Save and plot losses
         self.df_loss.to_csv(self.outputPath / 'losses.csv', index = False)
+        plot_losses(self.df_loss, self.outputPath)
 
     def logger(self, epoch, batchIdx, lossDisReal, lossDisFake, lossGen):
         self.df_loss.loc[len(self.df_loss)] = epoch, batchIdx, lossDisReal.cpu().item(), lossDisFake.cpu().item(), lossGen.cpu().item()

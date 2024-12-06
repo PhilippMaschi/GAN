@@ -5,13 +5,14 @@ import os
 
 
 def plot_losses(df, plotPath):
-    df.reset_index().plot(x = 'index', y = ['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'], alpha = 0.5, figsize = (12, 5))
+    df = df[~df['epoch'].duplicated(keep = 'last')]
+    df.reset_index(drop = True).plot(x = 'index', y = ['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'], alpha = 0.5, figsize = (12, 5))
     plt.title('Training losses')
-    plt.xlabel('epoch × batch_index')
+    plt.xlabel('epoch')
     plt.ylabel('value')
     plt.ylim(0, df[['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator']].max().max()*1.1)
-    plt.savefig(plotPath / 'training_losses.png')
-    plt.close();
+    plt.savefig(plotPath / 'losses.png')
+    plt.close()
 
 
 def compare_distributions(X_real, X_synth, plotPath):
@@ -24,19 +25,7 @@ def compare_distributions(X_real, X_synth, plotPath):
     plt.legend()
     plt.tight_layout()
     plt.savefig(plotPath / 'load_distrib.png')
-    plt.close();
-
-
-def plot_peaks(X_real, X_synth, plotPath):
-    peaksReal = X_real.max(axis = 0)
-    peaksSynth = X_synth.max(axis = 0)
-    fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
-    ax.boxplot([peaksReal, peaksSynth])
-    ax.set_xticklabels(['Real peaks', 'Synthetic peaks'])
-    plt.title(f'Comparison of peak values')
-    plt.ylabel('Value')
-    plt.savefig(plotPath / 'peaks.png')
-    plt.close();
+    plt.close()
 
 
 def plot_means(X_real, X_synth, plotPath):
@@ -48,7 +37,7 @@ def plot_means(X_real, X_synth, plotPath):
     plt.title(f'Comparison of mean values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'means.png')
-    plt.close();
+    plt.close()
 
 
 def plot_stds(X_real, X_synth, plotPath):
@@ -60,7 +49,7 @@ def plot_stds(X_real, X_synth, plotPath):
     plt.title(f'Comparison of standard deviation values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'stds.png')
-    plt.close();
+    plt.close()
 
 
 def plot_medians(X_real, X_synth, plotPath):
@@ -72,19 +61,19 @@ def plot_medians(X_real, X_synth, plotPath):
     plt.title(f'Comparison of median values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'medians.png')
-    plt.close();
+    plt.close()
 
 
 def plot_skews(X_real, X_synth, plotPath):
     skewsReal = 3*(X_real.mean(axis = 0) - np.median(X_real, axis = 0))/X_real.std(axis = 0)
-    skewsSynth = 3*(X_synth.mean(axis = 0) - np.median(X_synth, axis = 0))/X_real.std(axis = 0)
+    skewsSynth = 3*(X_synth.mean(axis = 0) - np.median(X_synth, axis = 0))/X_synth.std(axis = 0)
     fig, ax = plt.subplots(figsize = (8, 5), facecolor = 'w')
     ax.boxplot([skewsReal, skewsSynth])
     ax.set_xticklabels(['Real skews', 'Synthetic skews'])
     plt.title(f'Comparison of skewness values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'skews.png')
-    plt.close();
+    plt.close()
 
 
 def plot_mins(X_real, X_synth, plotPath):
@@ -96,7 +85,7 @@ def plot_mins(X_real, X_synth, plotPath):
     plt.title(f'Comparison of minimum values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'mins.png')
-    plt.close();
+    plt.close()
 
 
 def plot_maxs(X_real, X_synth, plotPath):
@@ -108,26 +97,15 @@ def plot_maxs(X_real, X_synth, plotPath):
     plt.title(f'Comparison of maximum values')
     plt.ylabel('Value')
     plt.savefig(plotPath / 'maxs.png')
-    plt.close();
+    plt.close()
 
 
 def plot_mean_profile(X_synth, plotPath):
     plt.figure(figsize = (10, 5))
     sns.heatmap(X_synth.astype(float).mean(axis = 1).reshape(24, -1))
     plt.title('Mean synthetic profile')
-    plt.savefig(plotPath / 'mean_synth_profile.png');
-
-
-def plot_wrapper(X_real, X_synth, runPath, return_ = False):
-    plotPath = runPath / 'plots'
-    os.makedirs(plotPath) if not os.path.exists(plotPath) else None
-    X_synth = X_synth[:, 1:]
-    fig_comp = compare_distributions(X_real, X_synth, plotPath)
-    fig_peaks = plot_peaks(X_real, X_synth, plotPath)
-    fig_means = plot_means(X_real, X_synth, plotPath)
-    plot_mean_profile(X_synth, plotPath)
-    if return_:
-        return fig_comp, fig_peaks, fig_means
+    plt.savefig(plotPath / 'mean_synth_profile.png')
+    plt.close()
 
 
 def model_plot_wrapper(X_real, X_synth, plotPath):
@@ -135,7 +113,6 @@ def model_plot_wrapper(X_real, X_synth, plotPath):
     X_real = X_real.astype(float)
     X_synth = X_synth.astype(float)
     compare_distributions(X_real, X_synth, plotPath)
-    plot_peaks(X_real, X_synth, plotPath)
     plot_means(X_real, X_synth, plotPath)
     plot_stds(X_real, X_synth, plotPath)
     plot_medians(X_real, X_synth, plotPath)

@@ -1,9 +1,9 @@
 # Project name
-PROJECT_NAME = 'opendata_fluvius_PV+HP_test'
+PROJECT_NAME = 'opendata_fluvius_EV+PV'
 
 # Input file path
 #INPUT_PATH = r'data\sample_data\opendata_fluvius\P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
-INPUT_PATH = r'C:\Users\Daniel\Projekte\Git\GAN\data\opendata_fluvius\labeled\PV+HP.csv'
+INPUT_PATH = r'C:\Users\Daniel\Projekte\Git\GAN\data\opendata_fluvius\labeled\EV+PV.csv'
 
 # Model state path (optional, for continuation of training or generation of data)
 MODEL_PATH = None
@@ -19,10 +19,10 @@ OUTPUT_FILE_FORMAT = '.npy'
 USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 10
+EPOCH_COUNT = 400
 
 # Change the result save frequency; save all samples/models
-RESULT_SAVE_FREQ = 2
+RESULT_SAVE_FREQ = 50
 SAVE_SAMPLES = False
 SAVE_MODELS = False
 
