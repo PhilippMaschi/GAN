@@ -85,6 +85,8 @@ class GAN(nn.Module):
 
 
     def train(self, progress = None, root = None):
+        gen_loss_history = []
+        learning_rate_halfed = []
         for epoch in tqdm(range(self.epochCount)):
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
@@ -125,12 +127,32 @@ class GAN(nn.Module):
                 # Log progress
                 self.logger(epoch, batchIdx, lossDisReal, lossDisFake, lossGen)
 
+            # learning rate decay:
+            mean_gen_loss = totalLossGen / len(self.dataLoader)
+            gen_loss_history.append(mean_gen_loss)
+
+            # if len(gen_loss_history) > 30 and epoch > 450: # start decay earliest after 200 epochs
+            if epoch == 500 or epoch == 1000:
+                # recent_losses = gen_loss_history[-30:]
+                # if mean_gen_loss >= min(recent_losses) and not any(learning_rate_halfed[-300:])==True:  # No improvement
+                    # learning_rate_halfed.append(True)
+                    for param_group in self.optimGen.param_groups:
+                        param_group['lr'] *= 0.5  # Halve generator learning rate
+                    for param_group in self.optimDis.param_groups:
+                        param_group['lr'] *= 0.5  # Halve discriminator learning rate
+                    print(f"Learning rate halved at epoch {epoch + 1}")
+            #     else:
+            #         learning_rate_halfed.append(False)
+            # else:
+            #     learning_rate_halfed.append(False)
+
             # Log progress with wandb
             if self.wandb:
                 self.wandb.log({
                     'loss_discriminator_real': totalLossDisReal/len(self.dataLoader),
                     'loss_discriminator_fake': totalLossDisFake/len(self.dataLoader),
-                    'loss_generator': totalLossGen/len(self.dataLoader)
+                    'loss_generator': totalLossGen/len(self.dataLoader),
+                    # 'learning_rate_generator': param_group['lrDis']
                 })
 
             # Save model state

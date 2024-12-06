@@ -1,8 +1,17 @@
+from pathlib import Path
+from datetime import datetime
+import pandas as pd
+import wandb
+
+from model.params import params
+from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
+from model.data_manip import get_sep
+
 # Project name
 PROJECT_NAME = 'test_VITO'
 
 # Input file path
-INPUT_PATH = r'C:\Users\Daniel\Projekte\Git\GAN\data\VITO\electricityConsumptionrPVHPRen.csv'
+INPUT_PATH = Path(__file__).parent / r'data/sample_data/opendata_fluvius/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
 
 # Model state path (optional, for continuation of training or generation of data)
 MODEL_PATH = None
@@ -13,22 +22,18 @@ CREATE_DATA = False
 # Output file format ('npy', 'csv' or 'xlsx')
 OUTPUT_FILE_FORMAT = '.csv'
 
-# Use Wandb (if True, metric will be tracked online)
-USE_WANDB = False
+# Use Wandb (if True, metric will be tracked online; Wandb account required)
+USE_WANDB = True
 
 # Set the number of epochs
-EPOCH_COUNT = 20
+EPOCH_COUNT = 1500
+
+# Change the model save frequency
+MODEL_SAVE_FREQ = 100
+TRACK_PROGRESS = 'on'
 
 ####################################################################################################
 
-from datetime import datetime
-import pandas as pd
-import wandb
-from pathlib import Path
-
-from model.params import params
-from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
-from model.plots import plot_wrapper
 
 
 if __name__ == '__main__':
