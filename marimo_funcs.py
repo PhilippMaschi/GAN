@@ -7,6 +7,7 @@ from pathlib import Path
 
 from model.params import params
 from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
+from model.data_manip import get_sep_marimo
 from model.plots import plot_wrapper
 
 
@@ -14,13 +15,13 @@ from model.plots import plot_wrapper
 def read_data(file):
     str_ = str(file.contents(), 'utf-8')
     data = StringIO(str_)
-    df = pd.read_csv(data)
+    df = pd.read_csv(data, sep = get_sep_marimo(data))
     df = df.set_index(df.columns[0])
     return df
 
 
 # Default values
-DEFAULT_PROJECTNAME = 'test'
+DEFAULT_PROJECTNAME = 'project_1'
 DEFAULT_EPOCHCOUNT = params['epochCount']
 DEFAULT_BATCHSIZE = params['batchSize']
 DEFAULT_LRGEN = params['lrGen']
@@ -123,8 +124,8 @@ def start():
         # Create results
         X_synth = model.generate_data()
         export_synthetic_data(X_synth, outputPath, outputFormat.value)
-        fig_comp, fig_peaks, fig_means = plot_wrapper(X_train, X_synth, outputPath, True)
-        return fig_comp, fig_peaks, fig_means
+        #fig_comp, fig_peaks, fig_means = plot_wrapper(X_train, X_synth, outputPath, True)
+        #return fig_comp, fig_peaks, fig_means
 
 
     elif modelRadio == 'Generate profiles':

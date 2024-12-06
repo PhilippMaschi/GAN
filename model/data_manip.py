@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import csv
 
 
 def add_zeros_rows(df: pd.DataFrame, dayCount: int) -> pd.DataFrame:
@@ -25,6 +26,8 @@ def add_zeros_rows(df: pd.DataFrame, dayCount: int) -> pd.DataFrame:
     if addRowCount < 0:
         raise ValueError(f'The maximum amount of days allowed is {dayCount}!')
     df_zeros = pd.DataFrame(np.zeros((addRowCount, df.shape[1])), columns = df.columns)
+    df_zeros.index = df_zeros.index.astype(str)
+    df_zeros.index = '#####' + df_zeros.index.astype(str)
     df = pd.concat([df, df_zeros])
     return df
 
@@ -132,3 +135,30 @@ def data_prep_wrapper(df: pd.DataFrame, dayCount: int, featureRange: tuple[int, 
     arr = reshape_arr(arr, dayCount)
     arr, arr_minMax = min_max_scaler(arr, featureRange)
     return arr, dfIdx, arr_minMax
+
+
+def get_sep(path):
+    """Determines the separator used in a CSV file.
+
+    Args:
+        path (str): Path to the file.
+
+    Returns:
+        str: The separator.
+    """
+    with open(path, newline = '') as file:
+        sep = csv.Sniffer().sniff(file.read()).delimiter
+        return sep
+
+
+def get_sep_marimo(data):
+    """Determines the separator used in a CSV file for the marimo notebook.
+
+    Args:
+        data (_io.StringI): Data object from marimo file uploader.
+
+    Returns:
+        str: The separator.
+    """
+    sep = csv.Sniffer().sniff(data.getvalue()).delimiter
+    return sep

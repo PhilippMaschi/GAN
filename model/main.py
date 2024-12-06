@@ -6,10 +6,12 @@ from tqdm import tqdm
 import torch
 import numpy as np
 from math import ceil
+import zstandard as zstd
+import io
 
 from model.data_manip import data_prep_wrapper, invert_min_max_scaler, revert_reshape_arr
 from model.layers import layersGen, layersDis
-from model.plots import plot_losses
+from model.plots import plot_losses, model_plot_wrapper
 
 
 DAY_COUNT = 368
@@ -46,8 +48,9 @@ class GAN(nn.Module):
             modelStatePath = None
         ):
         super().__init__()
+        self.inputDataset = dataset
         self.dataset, self.dfIdx, self.arr_minMax = \
-            data_prep_wrapper(df = dataset, dayCount = DAY_COUNT, featureRange = FEATURE_RANGE)
+            data_prep_wrapper(df = self.inputDataset, dayCount = DAY_COUNT, featureRange = FEATURE_RANGE)
         self.outputPath = outputPath
         self.wandb = wandb
         self.modelStatePath = modelStatePath
@@ -70,6 +73,8 @@ class GAN(nn.Module):
         os.makedirs(self.modelPath)
         self.plotPath = self.outputPath / 'plots'
         os.makedirs(self.plotPath)
+        self.samplePath = self.outputPath / 'sample_data'
+        os.makedirs(self.samplePath)
 
         # Continue training model
         if self.modelStatePath:
@@ -155,13 +160,25 @@ class GAN(nn.Module):
                     # 'learning_rate_generator': param_group['lrDis']
                 })
 
-            # Save model state
-            if (epoch + 1) % self.modelSaveFreq == 0 or epoch + 1 == self.epochCount:
-                self.save_model_state(epoch)
+            # Export results
+            if (epoch + 1) % self.resultSaveFreq == 0 or epoch + 1 == self.epochCount:
+                epochPlotPath = self.plotPath / f'epoch_{epoch + 1}'
+                os.makedirs(epochPlotPath)
 
-            # Track progress (save generated samples)
-            if self.trackProgress:
-                self.epochSamples.append(self.generate_data())
+                sampleTemp = self.generate_data()
+                model_plot_wrapper(self.inputDataset, sampleTemp, epochPlotPath)
+                
+                # Save samples
+                if self.saveSamples or epoch + 1 == self.epochCount:
+                    epochSamplePath = self.samplePath / f'epoch_{epoch + 1}'
+                    os.makedirs(epochSamplePath)
+                    export_synthetic_data(sampleTemp, epochSamplePath, self.outputFileFormat)
+
+                # Save models
+                if self.saveModels or epoch + 1 == self.epochCount:
+                    epochModelPath = self.modelPath / f'epoch_{epoch + 1}'
+                    os.makedirs(epochModelPath)
+                    self.save_model_state(epoch, epochModelPath)
 
             # Advance progress bar
             if progress:
@@ -169,32 +186,33 @@ class GAN(nn.Module):
                     progress['value'] += 7
                     root.update()
 
-        # Plot losses
-        plot_losses(self.df_loss, self.plotPath)
-
-        # Save losses in CSV file
+        # Save and plot losses
         self.df_loss.to_csv(self.outputPath / 'losses.csv', index = False)
+        plot_losses(self.df_loss, self.outputPath)
 
     def logger(self, epoch, batchIdx, lossDisReal, lossDisFake, lossGen):
         self.df_loss.loc[len(self.df_loss)] = epoch, batchIdx, lossDisReal.cpu().item(), lossDisFake.cpu().item(), lossGen.cpu().item()
     
-    def save_model_state(self, epoch):
-        torch.save({
-            'device': self.device,
-            'epoch': epoch,
-            'dimNoise': self.dimNoise,
-            'profileCount': self.dataset.shape[0],
-            'dfIdx': self.dfIdx,
-            'minMax': self.arr_minMax,
-            'gen_layers': self.layersGen,
-            'dis_layers': self.layersDis,
-            'gen_state_dict': self.Gen.state_dict(),
-            'dis_state_dict': self.Dis.state_dict(),
-            'optim_gen_state_dict': self.optimGen.state_dict(),
-            'optim_dis_state_dict': self.optimDis.state_dict(),
-            'continued_from': self.modelStatePath,
-            'feature_range': FEATURE_RANGE
-        }, self.modelPath / f'epoch_{epoch + 1}.pt')
+    def save_model_state(self, epoch, path):
+        cctx = zstd.ZstdCompressor(level = 22)
+        with open(path / f'epoch_{epoch + 1}.pt.zst', 'wb') as file:
+            with cctx.stream_writer(file) as compressor:
+                torch.save({
+                    'device': self.device,
+                    'epoch': epoch,
+                    'dimNoise': self.dimNoise,
+                    'profileCount': self.dataset.shape[0],
+                    'dfIdx': self.dfIdx,
+                    'minMax': self.arr_minMax,
+                    'gen_layers': self.layersGen,
+                    'dis_layers': self.layersDis,
+                    'gen_state_dict': self.Gen.state_dict(),
+                    'dis_state_dict': self.Dis.state_dict(),
+                    'optim_gen_state_dict': self.optimGen.state_dict(),
+                    'optim_dis_state_dict': self.optimDis.state_dict(),
+                    'continued_from': self.modelStatePath,
+                    'feature_range': FEATURE_RANGE
+                }, compressor)
 
     def generate_data(self):
         noise = randn(self.dataset.shape[0], self.dimNoise, 1, 1, device = self.device)
@@ -202,14 +220,20 @@ class GAN(nn.Module):
         xSynth = xSynth.cpu().detach().numpy()
         xSynth = invert_min_max_scaler(xSynth, self.arr_minMax, FEATURE_RANGE)
         xSynth = revert_reshape_arr(xSynth)
-        idx = self.dfIdx[:self.dfIdx.get_loc(0)]
+        idx = self.dfIdx[:self.dfIdx.get_loc('#####0')]
         xSynth = xSynth[:len(idx)]
         xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
         return xSynth
 
 
 def generate_data_from_saved_model(modelStatePath):
-    modelState = torch.load(modelStatePath)
+    with open(modelStatePath, 'rb') as file:
+        dctx = zstd.ZstdDecompressor()
+        with io.BytesIO() as buffer:
+            with dctx.stream_reader(file) as decompressor:
+                buffer.write(decompressor.read())
+                buffer.seek(0)
+                modelState = torch.load(buffer)
     Gen = Generator(modelState['gen_layers'])
     Gen.load_state_dict(modelState['gen_state_dict'])
     noise = randn(modelState['profileCount'], modelState['dimNoise'], 1, 1, device = modelState['device'])
@@ -217,18 +241,22 @@ def generate_data_from_saved_model(modelStatePath):
     xSynth = xSynth.cpu().detach().numpy()
     xSynth = invert_min_max_scaler(xSynth, modelState['minMax'], FEATURE_RANGE)
     xSynth = revert_reshape_arr(xSynth)
-    idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc(0)]
+    idx = modelState['dfIdx'][:modelState['dfIdx'].get_loc('#####0')]
     xSynth = xSynth[:len(idx)]
     xSynth = np.append(idx.to_numpy().reshape(-1, 1), xSynth, axis = 1)
     return xSynth
 
 
 def export_synthetic_data(arr, outputPath, fileFormat, filename = 'example_synth_profiles'):
-    print(outputPath / f'{filename}')
+    filePath = outputPath / f'{filename}{fileFormat}'
+    fileNewIdx = 2
+    while filePath.is_file():
+        filePath = outputPath / f'{filename}_{fileNewIdx}{fileFormat}'
+        fileNewIdx += 1
     match fileFormat:
         case '.npy':
-            np.save(file = outputPath / f'{filename}.npy', arr = arr)
+            np.save(file = filePath, arr = arr)
         case '.csv':
-            pd.DataFrame(arr).set_index(0).to_csv(outputPath / f'{filename}.csv')
+            pd.DataFrame(arr).set_index(0).to_csv(filePath)
         case '.xlsx':
-            pd.DataFrame(arr).set_index(0).to_excel(outputPath / f'{filename}.xlsx')
+            pd.DataFrame(arr).set_index(0).to_excel(filePath)
