@@ -8,7 +8,7 @@ from model.main import GAN, export_synthetic_data, generate_data_from_saved_mode
 from model.data_manip import get_sep
 
 # Project name
-PROJECT_NAME = 'opendata_fluvius_EV+PV'
+PROJECT_NAME = 'test'
 
 # Input file path
 INPUT_PATH = Path(__file__).parent / r'data/sample_data/opendata_fluvius/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
@@ -24,10 +24,10 @@ CREATE_DATA = False
 OUTPUT_FILE_FORMAT = '.npy'
 
 # Use Wandb (if True, metric will be tracked online; Wandb account required)
-USE_WANDB = True
+USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 400
+EPOCH_COUNT = 10
 
 # Change the result save frequency; save all samples/models
 RESULT_SAVE_FREQ = 50
