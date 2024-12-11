@@ -32,7 +32,14 @@ cd path/to/repository/GAN
 conda create --name myenv python=3.11
 ```
 
-4) Install required Python packages:
+4) Activate the enviroment:
+    Conda command for activating the created enviroment (replace myenv with the selected name):
+
+```sh
+conda activate myenv
+```
+
+5) Install required Python packages:
 
 ```sh
 conda install pip
