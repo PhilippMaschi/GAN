@@ -7,11 +7,13 @@ from model.params import params
 from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
 from model.data_manip import get_sep
 
+####################################################################################################
+
 # Project name
-PROJECT_NAME = 'test'
+PROJECT_NAME = 'enercoop'
 
 # Input file path
-INPUT_PATH = Path(__file__).parent / r'data/sample_data/opendata_fluvius/P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
+INPUT_PATH = Path.cwd() / 'data' / 'enercoop' / 'ENERCOOP_1year.csv'
 
 # Model state path (optional, for continuation of training or generation of data)
 MODEL_PATH = None
@@ -27,7 +29,7 @@ OUTPUT_FILE_FORMAT = '.npy'
 USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 10
+EPOCH_COUNT = 500
 
 # Change the result save frequency; save all samples/models
 RESULT_SAVE_FREQ = 50
@@ -35,8 +37,6 @@ SAVE_SAMPLES = False
 SAVE_MODELS = False
 
 ####################################################################################################
-
-
 
 if __name__ == '__main__':
     if not CREATE_DATA:
