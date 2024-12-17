@@ -150,19 +150,6 @@ def get_sep(path):
         sep = csv.Sniffer().sniff(file.read()).delimiter
         return sep
 
-
-def get_sep_marimo(data):
-    """Determines the separator used in a CSV file for the marimo notebook.
-
-    Args:
-        data (_io.StringI): Data object from marimo file uploader.
-
-    Returns:
-        str: The separator.
-    """
-    sep = csv.Sniffer().sniff(data.getvalue()).delimiter
-    return sep
-
 ####################################################################################################
 ################################# Optional (for removing outliers) #################################
 ####################################################################################################

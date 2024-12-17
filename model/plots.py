@@ -8,7 +8,8 @@ plt.ioff()
 
 def plot_losses(df, plotPath):
     df = df[~df['epoch'].duplicated(keep = 'last')]
-    df.reset_index(drop = True).plot(x = 'index', y = ['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'], alpha = 0.5, figsize = (12, 5))
+    df = df.reset_index()
+    df.plot(x = 'index', y = ['loss_discriminator_real', 'loss_discriminator_fake', 'loss_generator'], alpha = 0.5, figsize = (12, 5))
     plt.title('Training losses')
     plt.xlabel('epoch')
     plt.ylabel('value')

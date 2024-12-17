@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 import pandas as pd
 import os
 from tqdm import tqdm
+import marimo as mo
 import torch
 import numpy as np
 from math import ceil
@@ -45,7 +46,8 @@ class GAN(nn.Module):
             outputPath,
             params,
             wandb = None,
-            modelStatePath = None
+            modelStatePath = None,
+            marimo = False
         ):
         super().__init__()
         self.inputDataset = dataset
@@ -54,6 +56,7 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.wandb = wandb
         self.modelStatePath = modelStatePath
+        self.marimo = marimo
         # Get parameters from `params.py`
         for key, value in params.items():
             setattr(self, key, value)
@@ -92,7 +95,11 @@ class GAN(nn.Module):
     def train(self, progress = None, root = None):
         gen_loss_history = []
         learning_rate_halfed = []
-        for epoch in tqdm(range(self.epochCount)):
+        if not self.marimo:
+            progressLoop = tqdm(range(self.epochCount))
+        else:
+            progressLoop = mo.status.progress_bar(range(self.epochCount))
+        for epoch in progressLoop:
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
                 xReal = data.to(device = self.device, dtype = float32)
@@ -161,7 +168,7 @@ class GAN(nn.Module):
                 })
 
             # Export results
-            if (epoch + 1) % self.resultSaveFreq == 0 or epoch + 1 == self.epochCount:
+            if (epoch + 1) % self.saveFreq == 0 or epoch + 1 == self.epochCount:
                 epochPlotPath = self.plotPath / f'epoch_{epoch + 1}'
                 os.makedirs(epochPlotPath)
 
@@ -172,7 +179,7 @@ class GAN(nn.Module):
                 if self.saveSamples or epoch + 1 == self.epochCount:
                     epochSamplePath = self.samplePath / f'epoch_{epoch + 1}'
                     os.makedirs(epochSamplePath)
-                    export_synthetic_data(sampleTemp, epochSamplePath, self.outputFileFormat)
+                    export_synthetic_data(sampleTemp, epochSamplePath, self.outputFormat)
 
                 # Save models
                 if self.saveModels or epoch + 1 == self.epochCount:
