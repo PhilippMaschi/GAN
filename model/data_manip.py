@@ -162,3 +162,28 @@ def get_sep_marimo(data):
     """
     sep = csv.Sniffer().sniff(data.getvalue()).delimiter
     return sep
+
+####################################################################################################
+################################# Optional (for removing outliers) #################################
+####################################################################################################
+
+def limit_load_sums(series, alpha):
+    colsToRemove = set(series[(series < np.quantile(series, alpha/2)) | (series > np.quantile(series, 1 - alpha/2))].index)
+    return colsToRemove
+
+
+def find_outliers(series):
+    q1, q3 = series.quantile(0.25), series.quantile(0.75)
+    IQR = q3 - q1
+    colsToRemove = set(series[(series < q1 - 1.5*IQR) | (series > q3 + 1.5*IQR)].index)
+    return colsToRemove
+
+
+def outlier_removal_wrapper(df, alpha):
+    loadSums = df.sum()
+    initialColCount = df.shape[1]
+    colsToRemove = limit_load_sums(loadSums, alpha) | find_outliers(df.min()) | find_outliers(df.max())
+    df = df.drop(columns = colsToRemove)
+    print(f'Outlier detection: {len(colsToRemove)} profiles were removed \
+        ({initialColCount} → {initialColCount - len(colsToRemove)}).')
+    return df

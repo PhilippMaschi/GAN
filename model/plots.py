@@ -133,11 +133,18 @@ def plot_mean_profiles(X_real, X_synth, plotPath):
     return fig
 
 
+def array_converter(df):
+    arr = df.to_numpy()
+    return arr
+
+
 def model_plot_wrapper(X_real, X_synth, plotPath = None, removeIndex = True):
     if removeIndex:
         X_synth = X_synth[:, 1:]
     X_real = X_real.astype(float)
     X_synth = X_synth.astype(float)
+    if type(X_real) != np.ndarray:
+        X_real = X_real.to_numpy()
     compare_distributions(X_real, X_synth, plotPath)
     plot_means(X_real, X_synth, plotPath)
     plot_stds(X_real, X_synth, plotPath)

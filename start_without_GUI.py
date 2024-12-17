@@ -10,10 +10,10 @@ from model.data_manip import get_sep
 ####################################################################################################
 
 # Project name
-PROJECT_NAME = 'enercoop'
+PROJECT_NAME = 'enercoop_wo_outliers_alpha015'
 
 # Input file path
-INPUT_PATH = Path.cwd() / 'data' / 'enercoop' / 'ENERCOOP_1year.csv'
+INPUT_PATH = Path.cwd() / 'data' / 'enercoop' / 'ENERCOOP_1year_noOutliers_alpha0,15.csv'
 
 # Model state path (optional, for continuation of training or generation of data)
 MODEL_PATH = None
@@ -29,7 +29,7 @@ OUTPUT_FILE_FORMAT = '.npy'
 USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 500
+EPOCH_COUNT = 750
 
 # Change the result save frequency; save all samples/models
 RESULT_SAVE_FREQ = 50
