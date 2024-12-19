@@ -3,11 +3,9 @@ from torch.utils.data import DataLoader
 import pandas as pd
 import os
 from tqdm import tqdm
-import marimo as mo
 import torch
 import numpy as np
-from math import ceil
-import zstandard as zstd
+import gzip
 import io
 
 from model.data_manip import data_prep_wrapper, invert_min_max_scaler, revert_reshape_arr
@@ -47,7 +45,7 @@ class GAN(nn.Module):
             params,
             wandb = None,
             modelStatePath = None,
-            marimo = False
+            useMarimo = False
         ):
         super().__init__()
         self.inputDataset = dataset
@@ -56,7 +54,7 @@ class GAN(nn.Module):
         self.outputPath = outputPath
         self.wandb = wandb
         self.modelStatePath = modelStatePath
-        self.marimo = marimo
+        self.useMarimo = useMarimo
         # Get parameters from `params.py`
         for key, value in params.items():
             setattr(self, key, value)
@@ -81,7 +79,8 @@ class GAN(nn.Module):
 
         # Continue training model
         if self.modelStatePath:
-            self.modelState = torch.load(self.modelStatePath)
+            with gzip.open(self.modelStatePath, 'rb') as file:
+                self.modelState = torch.load(file)
             if not (self.dfIdx == self.modelState['dfIdx']).all():
                 raise ValueError('Timestamps do not match!')
             self.arr_minMaxOld = self.modelState['minMax']
@@ -92,14 +91,15 @@ class GAN(nn.Module):
             self.optimDis.load_state_dict(self.modelState['optim_dis_state_dict'])
 
 
-    def train(self, progress = None, root = None):
+    def train(self):
         gen_loss_history = []
         learning_rate_halfed = []
-        if not self.marimo:
-            progressLoop = tqdm(range(self.epochCount))
+        if not self.useMarimo:
+            progress = tqdm(range(self.epochCount))
         else:
-            progressLoop = mo.status.progress_bar(range(self.epochCount))
-        for epoch in progressLoop:
+            import marimo as mo
+            progress = mo.status.progress_bar(range(self.epochCount))
+        for epoch in progress:
             totalLossGen, totalLossDisFake, totalLossDisReal = 0, 0, 0
             for batchIdx, data in enumerate(self.dataLoader):
                 xReal = data.to(device = self.device, dtype = float32)
@@ -187,12 +187,6 @@ class GAN(nn.Module):
                     os.makedirs(epochModelPath)
                     self.save_model_state(epoch, epochModelPath)
 
-            # Advance progress bar
-            if progress:
-                if (epoch + 1)%(ceil(self.epochCount/10)) == 0 or epoch + 1 == self.epochCount:
-                    progress['value'] += 7
-                    root.update()
-
         # Save and plot losses
         self.df_loss.to_csv(self.outputPath / 'losses.csv', index = False)
         plot_losses(self.df_loss, self.outputPath)
@@ -201,25 +195,24 @@ class GAN(nn.Module):
         self.df_loss.loc[len(self.df_loss)] = epoch, batchIdx, lossDisReal.cpu().item(), lossDisFake.cpu().item(), lossGen.cpu().item()
     
     def save_model_state(self, epoch, path):
-        cctx = zstd.ZstdCompressor(level = 22)
-        with open(path / f'epoch_{epoch + 1}.pt.zst', 'wb') as file:
-            with cctx.stream_writer(file) as compressor:
-                torch.save({
-                    'device': self.device,
-                    'epoch': epoch,
-                    'dimNoise': self.dimNoise,
-                    'profileCount': self.dataset.shape[0],
-                    'dfIdx': self.dfIdx,
-                    'minMax': self.arr_minMax,
-                    'gen_layers': self.layersGen,
-                    'dis_layers': self.layersDis,
-                    'gen_state_dict': self.Gen.state_dict(),
-                    'dis_state_dict': self.Dis.state_dict(),
-                    'optim_gen_state_dict': self.optimGen.state_dict(),
-                    'optim_dis_state_dict': self.optimDis.state_dict(),
-                    'continued_from': self.modelStatePath,
-                    'feature_range': FEATURE_RANGE
-                }, compressor)
+        model = {
+            'device': self.device,
+            'epoch': epoch,
+            'dimNoise': self.dimNoise,
+            'profileCount': self.dataset.shape[0],
+            'dfIdx': self.dfIdx,
+            'minMax': self.arr_minMax,
+            'gen_layers': self.layersGen,
+            'dis_layers': self.layersDis,
+            'gen_state_dict': self.Gen.state_dict(),
+            'dis_state_dict': self.Dis.state_dict(),
+            'optim_gen_state_dict': self.optimGen.state_dict(),
+            'optim_dis_state_dict': self.optimDis.state_dict(),
+            'continued_from': self.modelStatePath,
+            'feature_range': FEATURE_RANGE
+        }
+        with gzip.open(path / f'epoch_{epoch + 1}.pt.gz', 'wb') as file:
+            torch.save(model, file)
 
     def generate_data(self):
         noise = randn(self.dataset.shape[0], self.dimNoise, 1, 1, device = self.device)
@@ -234,13 +227,8 @@ class GAN(nn.Module):
 
 
 def generate_data_from_saved_model(modelStatePath):
-    with open(modelStatePath, 'rb') as file:
-        dctx = zstd.ZstdDecompressor()
-        with io.BytesIO() as buffer:
-            with dctx.stream_reader(file) as decompressor:
-                buffer.write(decompressor.read())
-                buffer.seek(0)
-                modelState = torch.load(buffer)
+    with gzip.open(modelStatePath, 'rb') as file:
+        modelState = torch.load(file)
     Gen = Generator(modelState['gen_layers'])
     Gen.load_state_dict(modelState['gen_state_dict'])
     noise = randn(modelState['profileCount'], modelState['dimNoise'], 1, 1, device = modelState['device'])

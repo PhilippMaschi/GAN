@@ -169,7 +169,7 @@ def find_outliers(series):
 def outlier_removal_wrapper(df, alpha):
     loadSums = df.sum()
     initialColCount = df.shape[1]
-    colsToRemove = limit_load_sums(loadSums, alpha) | find_outliers(df.min()) | find_outliers(df.max())
+    colsToRemove = limit_load_sums(loadSums, alpha) | find_outliers(df.max())
     df = df.drop(columns = colsToRemove)
     print(f'Outlier detection: {len(colsToRemove)} profiles were removed \
         ({initialColCount} → {initialColCount - len(colsToRemove)}).')

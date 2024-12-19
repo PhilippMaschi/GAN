@@ -3,6 +3,8 @@ runs/
 wandb/
 .venv/
 
+TODOS.txt
+
 *.csv
 *.png
 *.gzip

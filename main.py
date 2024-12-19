@@ -4,7 +4,7 @@ from pathlib import Path
 from model.main import GAN, generate_data_from_saved_model, export_synthetic_data
 
 
-def run(params, projectName, inputFile, useWandb, modelPath, createData, marimo = False):
+def run(params, projectName, inputFile, useWandb, modelPath, createData, useMarimo = False):
     if modelPath and createData:
         outputPath = Path(modelPath).parent.parent.parent / 'sample_data' / Path(modelPath).parent.name
         outputPath.mkdir(parents = True, exist_ok = True)
@@ -26,6 +26,6 @@ def run(params, projectName, inputFile, useWandb, modelPath, createData, marimo 
             params = params,
             wandb = wandb,
             modelStatePath = modelPath,
-            marimo = marimo
+            useMarimo = useMarimo
         )
-        model.train(None)
+        model.train()
