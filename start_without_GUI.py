@@ -1,72 +1,48 @@
+from pathlib import Path
+from model.params import params
+import pandas as pd
+from model.data_manip import get_sep
+from main import run
+
+####################################################################################################
+
 # Project name
-PROJECT_NAME = 'project_1'
+PROJECT_NAME = 'test'
 
 # Input file path
-INPUT_PATH = r'data\sample_data\opendata_fluvius\P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
-
-# Model state path (optional, for continuation of training or generation of data)
-MODEL_PATH = None
-#MODEL_PATH = r''
-
-# Create synthetic data from existing model (if True, there is no training)
-CREATE_DATA = False
+INPUT_PATH = Path.cwd() / 'data' / 'sample_data' / 'opendata_fluvius' / 'P6269_1_50_DMK_Sample_Elek_Volume_Afname_kWh_HP_resampled.csv'
 
 # Output file format ('npy', 'csv' or 'xlsx')
-OUTPUT_FILE_FORMAT = '.npy'
+OUTPUT_FORMAT = '.npy'
 
 # Use Wandb (if True, metric will be tracked online; Wandb account required)
 USE_WANDB = False
 
 # Set the number of epochs
-EPOCH_COUNT = 5
+EPOCH_COUNT = 100
 
-# Change the model save frequency
-MODEL_SAVE_FREQ = 50
-TRACK_PROGRESS = 'on'
+# Change the result save frequency; save all samples/models in addition to visualizations
+SAVE_FREQ = 1000
+SAVE_SAMPLES = False
+SAVE_MODELS = False
 
 ####################################################################################################
 
-from datetime import datetime
-import pandas as pd
-import wandb
-from pathlib import Path
+# Model state path (optional, for continuation of training or generation of data)
+MODEL_PATH = None
+MODEL_PATH = r'C:\Users\Arbeit\Projekte\Git\GAN\runs\test\2024_12_19_102947716\models\epoch_100\epoch_100.pt.gz'
 
-from model.params import params
-from model.main import GAN, export_synthetic_data, generate_data_from_saved_model
-from model.data_manip import get_sep
+# Create synthetic data from existing model (if True, there is no training)
+CREATE_DATA = False
 
+####################################################################################################
 
 if __name__ == '__main__':
-    if not CREATE_DATA:
-        wandb.init(
-            project = 'GAN',
-            mode = 'online' if USE_WANDB else 'offline'
-        )
-        modelName = wandb.run.name
-        runNameTSSuffix = datetime.today().strftime('%Y_%m_%d_%H%M%S%f')[:-3]   #added to the end of the run name
-        runName = f'{modelName}_{runNameTSSuffix}' if len(modelName) > 0 else runNameTSSuffix
-        outputPath = Path().absolute() / 'runs' / PROJECT_NAME / runName
-        outputPath.mkdir(parents = True, exist_ok = True)
-        X_train = pd.read_csv(INPUT_PATH, sep = get_sep(INPUT_PATH))
-        X_train = X_train.set_index(X_train.columns[0])
-        params['epochCount'] = EPOCH_COUNT
-        params['modelSaveFreq'] = MODEL_SAVE_FREQ
-        params['trackProgress'] = TRACK_PROGRESS
-
-        model = GAN(
-            dataset = X_train,
-            outputPath = outputPath,
-            params = params,
-            wandb = wandb,
-            modelStatePath = MODEL_PATH
-        )
-        
-        model.train(None)
-        X_synth = model.generate_data()
-        export_synthetic_data(X_synth, outputPath, OUTPUT_FILE_FORMAT)
-
-    else:
-        outputPath = Path(MODEL_PATH).parent.parent / Path(MODEL_PATH).name[:-6] / 'generated_profiles'
-        outputPath.mkdir(parents = True, exist_ok = True)
-        X_synth = generate_data_from_saved_model(MODEL_PATH)
-        export_synthetic_data(X_synth, outputPath, OUTPUT_FILE_FORMAT, 'synth_profiles')
+    params['outputFormat'] = OUTPUT_FORMAT
+    params['epochCount'] = EPOCH_COUNT
+    params['saveFreq'] = SAVE_FREQ
+    params['saveSamples'] = SAVE_SAMPLES
+    params['saveModels'] = SAVE_MODELS
+    inputFile = pd.read_csv(INPUT_PATH, sep = get_sep(INPUT_PATH))
+    inputFile = inputFile.set_index(inputFile.columns[0])
+    run(params, PROJECT_NAME, inputFile, USE_WANDB, MODEL_PATH, CREATE_DATA)

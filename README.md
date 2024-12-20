@@ -32,7 +32,14 @@ cd path/to/repository/GAN
 conda create --name myenv python=3.11
 ```
 
-4) Install required Python packages:
+4) Activate the enviroment:
+    Conda command for activating the created enviroment (replace myenv with the selected name):
+
+```sh
+conda activate myenv
+```
+
+5) Install required Python packages:
 
 ```sh
 conda install pip
@@ -79,7 +86,7 @@ The notebook consists of two blocks:
 1. "Create project": Here, the name of the project can be entered and a project directory can be selected by using the provided file browser.
 2. "Options": Contains basic as well as advanced options. The "Data" button is used to upload the CSV file containing the electricity consumption profiles. A detailed description of all parameters can be found in the consequent chapter.
 
-<span style='color:red'>**! marimo notebooks only allow file sizes up to 100 mb, for larger input files, the Python script has to be used !**</span>
+<span style='color:red'>**! marimo notebooks only allow file sizes up to 100 MB, for larger input files, the Python script has to be used !**</span>
 
 After uploading the required file(s) and adjusting the settings, the program can be started by pressing the "Run" button below the options menu. A new cell displaying the training progress will appear:
 
